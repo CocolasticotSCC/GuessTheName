@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devinez le prénom</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f8f3ea;
+    --surface: #fffdf8;
+    --ink: #33291f;
+    --ink-soft: #8a7c6a;
+    --line: #eadfcc;
+    --accent: #b3854a;
+    --accent-dark: #8f6737;
+    --rose: #c2766a;
+    --rose-soft: #f7e8e2;
+    --sage: #a8b89e;
+    --danger: #a04b3c;
+    --radius: 16px;
+    --shadow: 0 10px 32px rgba(120, 80, 40, 0.10);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background:
+      radial-gradient(1100px 700px at 12% -8%, rgba(226, 168, 152, 0.20), transparent 60%),
+      radial-gradient(1000px 700px at 105% 108%, rgba(168, 184, 158, 0.22), transparent 60%),
+      radial-gradient(800px 500px at 90% -10%, rgba(211, 177, 122, 0.16), transparent 55%),
+      var(--bg);
+    min-height: 100vh;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  .screen { display: none; width: 100%; max-width: 620px; animation: rise .45s ease; }
+  .screen.active { display: block; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 48px 42px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    display: block;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    margin-bottom: 14px;
+  }
+  .eyebrow::before, .eyebrow::after { content: "—"; color: var(--line); margin: 0 10px; }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.9rem;
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+  .subtitle { color: var(--ink-soft); margin-bottom: 26px; font-size: .98rem; line-height: 1.6; }
+
+  label {
+    display: block;
+    text-align: left;
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 22px 0 8px;
+  }
+  label .optional { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  input[type="text"], input[type="email"], textarea {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 13px 15px;
+    font-size: 1rem;
+    font-family: var(--sans);
+    color: var(--ink);
+    background: #fffefb;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(163, 129, 79, .12);
+  }
+  textarea { resize: vertical; min-height: 140px; }
+
+  .btn {
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 15px 34px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #c39554 0%, #a06f3c 100%);
+    color: #fdfbf6;
+    box-shadow: 0 6px 18px rgba(163, 129, 79, 0.35);
+    transition: filter .2s, transform .15s, opacity .15s, box-shadow .15s;
+    text-decoration: none;
+    margin-top: 26px;
+  }
+  .btn:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(163, 129, 79, 0.45); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .5; cursor: wait; transform: none; }
+  .btn.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    box-shadow: none;
+  }
+  .btn.secondary:hover { background: var(--rose-soft); border-color: var(--rose); color: var(--rose); filter: none; }
+  .btn.small { font-size: .72rem; padding: 12px 24px; }
+
+  .notice {
+    margin-top: 26px;
+    background: #f8f3e8;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: .85rem;
+    text-align: left;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .notice strong { color: var(--ink); }
+
+  /* ---- Duel ---- */
+  .round-label {
+    display: inline-block;
+    font-size: .74rem;
+    font-weight: 600;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    background: linear-gradient(135deg, #fdf8ef, #faf0e6);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 9px 22px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 14px rgba(163, 129, 79, 0.12);
+  }
+
+  .progress-track {
+    background: var(--line);
+    border-radius: 999px;
+    height: 3px;
+    margin: 12px auto 30px;
+    max-width: 300px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--rose));
+    border-radius: 999px;
+    transition: width .4s ease;
+  }
+
+  .matchup {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .name-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 52px 12px;
+    font-family: var(--serif);
+    font-size: 1.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+  }
+  .name-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--rose);
+    background: #fffaf5;
+    box-shadow: 0 14px 38px rgba(150, 90, 60, 0.16);
+  }
+  .name-card:active { transform: scale(.97); }
+
+  .vs {
+    align-self: center;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--rose);
+    background: var(--rose-soft);
+    border: 1px solid #edd5cc;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hint { margin-top: 26px; color: var(--ink-soft); font-size: .88rem; text-align: center; }
+
+  /* ---- Résultat personnel ---- */
+  .winner-wrap {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin: 18px 0 22px;
+    padding: 26px 8px;
+  }
+  .winner-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 3rem;
+    line-height: 1.15;
+    background: linear-gradient(120deg, var(--accent-dark) 20%, var(--rose) 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    word-break: break-word;
+    animation: reveal .8s ease;
+  }
+  @keyframes reveal {
+    from { opacity: 0; letter-spacing: .12em; }
+    to   { opacity: 1; letter-spacing: 0; }
+  }
+  .winner-ornament { color: var(--rose); font-size: .95rem; letter-spacing: .5em; margin-bottom: 10px; }
+
+  /* ---- Prédictions ---- */
+  .tally { margin-top: 10px; text-align: left; }
+  .tally-row { margin-bottom: 16px; }
+  .tally-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .tally-name { font-family: var(--serif); font-size: 1.08rem; }
+  .tally-count { color: var(--ink-soft); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+  .tally-bar-track {
+    background: #efe9db;
+    border-radius: 999px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .tally-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #c5a978, var(--rose));
+    border-radius: 999px;
+  }
+
+  .guess-list { margin-top: 30px; text-align: left; }
+  .guess-item {
+    border-top: 1px solid var(--line);
+    padding: 14px 4px;
+  }
+  .guess-item:last-child { border-bottom: 1px solid var(--line); }
+  .guess-item .g-who { font-weight: 600; font-size: .95rem; }
+  .guess-item .g-name { font-family: var(--serif); font-style: italic; color: var(--accent-dark); font-size: 1.05rem; }
+  .guess-item .g-msg { color: var(--ink-soft); font-size: .88rem; margin-top: 4px; font-style: italic; }
+
+  .empty-state { color: var(--ink-soft); font-size: .95rem; margin-top: 18px; }
+
+  .link-box {
+    margin-top: 24px;
+    background: #f8f5ee;
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: .82rem;
+    word-break: break-all;
+    text-align: left;
+    color: var(--ink-soft);
+    display: none;
+  }
+  .link-box.visible { display: block; }
+
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(90px);
+    background: var(--ink);
+    color: #fdfbf6;
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-size: .88rem;
+    letter-spacing: .02em;
+    transition: transform .3s ease;
+    z-index: 50;
+    max-width: 90vw;
+  }
+  .toast.visible { transform: translateX(-50%) translateY(0); }
+
+  .error-msg { color: var(--danger); font-size: .88rem; margin-top: 14px; display: none; }
+  .error-msg.visible { display: block; }
+
+  .petal {
+    position: fixed;
+    top: -24px;
+    width: 8px;
+    height: 14px;
+    border-radius: 60% 40% 60% 40%;
+    opacity: .85;
+    pointer-events: none;
+    z-index: 10;
+    animation: drift linear forwards;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0, 0) rotate(0deg); }
+    100% { transform: translate(var(--sway), 108vh) rotate(var(--spin)); opacity: .5; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .screen, .winner-name { animation: none !important; }
+    .progress-fill, .btn, .name-card { transition: none !important; }
+    .petal { display: none !important; }
+  }
+
+  @media (max-width: 520px) {
+    .panel { padding: 34px 24px; }
+    .name-card { font-size: 1.3rem; padding: 40px 8px; }
+    h1 { font-size: 1.5rem; }
+    .winner-name { font-size: 2.2rem; }
+    .vs { width: 40px; height: 40px; min-width: 40px; font-size: .9rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ ADMIN : création du jeu ============ -->
+<div class="screen" id="screen-admin">
+  <div class="panel">
+    <span class="eyebrow">Devinez le prénom</span>
+    <h1 id="admin-heading">Créez votre jeu</h1>
+    <p class="subtitle" id="admin-subtitle">Composez votre liste de prénoms, générez un lien et partagez-le à vos proches. Chacun départagera les prénoms en duels successifs jusqu'à son favori.</p>
+
+    <label for="admin-title">Titre du jeu</label>
+    <input type="text" id="admin-title" value="Devinez le prénom de notre bébé" maxlength="80">
+
+    <label for="admin-email">Votre adresse email <span class="optional">(facultative — utilisée uniquement pour l'envoi des réponses par email)</span></label>
+    <input type="email" id="admin-email" placeholder="vous@exemple.com">
+
+    <label for="admin-names">Les prénoms <span class="optional">(un par ligne, deux minimum)</span></label>
+    <textarea id="admin-names" placeholder="Léo&#10;Emma&#10;Gabriel&#10;Jade&#10;…"></textarea>
+
+    <p class="error-msg" id="admin-error"></p>
+
+    <button class="btn" id="admin-submit" onclick="createGame()">Générer le lien</button>
+    <button class="btn secondary" id="admin-cancel" style="display:none" onclick="cancelEdit()">Retour au jeu</button>
+
+    <div class="link-box" id="admin-link-box">
+      <span id="admin-link"></span>
+    </div>
+    <div id="admin-link-actions" style="display:none">
+      <button class="btn secondary small" onclick="copyLink()">Copier le lien</button>
+      <a class="btn small" id="admin-test-link" href="#">Prévisualiser</a>
+    </div>
+
+    <div class="notice" id="admin-owner-note" style="display:none">
+      <strong>Vous êtes l'administrateur de ce jeu.</strong> Depuis ce navigateur, la page du jeu vous proposera un bouton «&nbsp;Modifier la liste&nbsp;» pour ajuster les prénoms à tout moment, sans changer le lien partagé. Conservez donc ce même appareil pour administrer le jeu.
+    </div>
+
+    <div class="notice" id="admin-offline-notice" style="display:none">
+      <strong>Mode en ligne désactivé.</strong> Les prédictions ne s'afficheront pas sur le site&nbsp;: les participants enverront leur réponse par email. Pour activer le partage des prédictions, consultez le fichier README (configuration Firebase gratuite, environ cinq minutes).
+    </div>
+  </div>
+</div>
+
+<!-- ============ INTRO ============ -->
+<div class="screen" id="screen-intro">
+  <div class="panel">
+    <span class="eyebrow">Devinez le prénom</span>
+    <h1 id="intro-title"></h1>
+    <p class="subtitle" id="intro-subtitle"></p>
+    <div>
+      <button class="btn" onclick="startGame()">Commencer</button>
+    </div>
+    <div id="intro-results-btn" style="display:none">
+      <button class="btn secondary small" onclick="openResults()">Voir les prédictions</button>
+    </div>
+    <div id="intro-edit-btn" style="display:none">
+      <button class="btn secondary small" onclick="openEdit()">Modifier la liste</button>
+    </div>
+    <p class="hint" id="intro-my-prono" style="display:none"></p>
+  </div>
+</div>
+
+<!-- ============ CHARGEMENT ============ -->
+<div class="screen" id="screen-loading">
+  <div class="panel">
+    <p class="subtitle" style="margin:0">Chargement…</p>
+  </div>
+</div>
+
+<!-- ============ DUEL ============ -->
+<div class="screen" id="screen-game">
+  <div style="text-align:center">
+    <span class="round-label" id="round-label"></span>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+  <div class="matchup">
+    <button class="name-card" id="card-a" onclick="pick(0)"></button>
+    <span class="vs">vs</span>
+    <button class="name-card" id="card-b" onclick="pick(1)"></button>
+  </div>
+  <p class="hint">Devinez le prénom : choisissez votre favori.</p>
+</div>
+
+<!-- ============ RÉSULTAT PERSONNEL ============ -->
+<div class="screen" id="screen-final">
+  <div class="panel">
+    <span class="eyebrow">Votre favori</span>
+    <div class="winner-wrap">
+      <div class="winner-ornament">✦</div>
+      <div class="winner-name" id="winner-name"></div>
+    </div>
+    <p class="subtitle" id="final-subtitle"></p>
+
+    <label for="guesser-name">Votre nom</label>
+    <input type="text" id="guesser-name" placeholder="Marie" maxlength="60">
+
+    <label for="guesser-message">Un mot pour les futurs parents <span class="optional">(facultatif)</span></label>
+    <input type="text" id="guesser-message" placeholder="Toutes nos félicitations !" maxlength="200">
+
+    <p class="error-msg" id="final-error"></p>
+
+    <div id="final-online-actions" style="display:none">
+      <button class="btn" id="publish-btn" onclick="publishGuess()">Publier ma prédiction</button>
+    </div>
+    <div id="final-email-actions" style="display:none">
+      <button class="btn" onclick="sendEmail()">Envoyer par email</button>
+    </div>
+    <div>
+      <button class="btn secondary small" onclick="copyAnswer()">Copier ma réponse</button>
+      <button class="btn secondary small" onclick="startGame()">Recommencer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PRÉDICTIONS ============ -->
+<div class="screen" id="screen-results">
+  <div class="panel">
+    <span class="eyebrow">Les prédictions</span>
+    <h2 id="results-title">Ce que pensent vos proches</h2>
+    <p class="subtitle" id="results-subtitle"></p>
+    <div class="tally" id="results-tally"></div>
+    <div class="guess-list" id="results-list"></div>
+    <p class="empty-state" id="results-empty" style="display:none">Aucune prédiction pour le moment. Soyez le premier à participer.</p>
+    <div>
+      <button class="btn small" onclick="startGame()">Participer</button>
+      <button class="btn secondary small" onclick="refreshResults()">Actualiser</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // =====================================================================
+  //  CONFIGURATION — prédictions partagées (optionnel)
+  //  Pour afficher les prédictions des participants sur le site, créez un
+  //  projet Firebase (gratuit, voir README.md) et collez ici l'objet
+  //  firebaseConfig fourni par la console. Laisser à null = mode email.
+  // =====================================================================
+  const FIREBASE_CONFIG = null;
+  // Exemple :
+  // const FIREBASE_CONFIG = {
+  //   apiKey: "AIza...",
+  //   authDomain: "votre-projet.firebaseapp.com",
+  //   projectId: "votre-projet",
+  //   storageBucket: "votre-projet.appspot.com",
+  //   messagingSenderId: "1234567890",
+  //   appId: "1:1234567890:web:abcdef"
+  // };
+
+  const ONLINE = !!FIREBASE_CONFIG;
+  let app = null, db = null, fs = null, authUser = null;
+
+  async function getApp() {
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+    if (!app) app = appMod.initializeApp(FIREBASE_CONFIG);
+    return app;
+  }
+  async function getDb() {
+    if (!ONLINE) return null;
+    if (db) return db;
+    fs = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-lite.js');
+    db = fs.getFirestore(await getApp());
+    return db;
+  }
+  // Connexion anonyme (invisible pour l'utilisateur) : elle identifie le
+  // créateur d'un jeu afin qu'il soit le seul à pouvoir modifier sa liste.
+  async function ensureAuth() {
+    if (!ONLINE) return null;
+    if (authUser) return authUser;
+    try {
+      const authMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+      const auth = authMod.getAuth(await getApp());
+      authUser = (await authMod.signInAnonymously(auth)).user;
+    } catch (e) {
+      authUser = null;
+    }
+    return authUser;
+  }
+
+  // ---------- Encodage de la config dans l'URL ----------
+  function encodeConfig(cfg) {
+    const json = JSON.stringify(cfg);
+    return btoa(unescape(encodeURIComponent(json)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function decodeConfig(str) {
+    let s = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    return JSON.parse(decodeURIComponent(escape(atob(s))));
+  }
+  // Identifiant stable pour les anciens liens sans champ id
+  function simpleHash(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return 'g' + h.toString(36);
+  }
+
+  // Identifiant anonyme du navigateur : permet une seule prédiction par
+  // appareil, remplacée si l'on rejoue et republie.
+  function getDeviceId() {
+    let id = localStorage.getItem('gtn-device');
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
+      localStorage.setItem('gtn-device', id);
+    }
+    return id;
+  }
+  function getMyProno() {
+    try { return JSON.parse(localStorage.getItem('gtn-prono-' + config.id)); }
+    catch (e) { return null; }
+  }
+  function saveMyProno(p) {
+    localStorage.setItem('gtn-prono-' + config.id, JSON.stringify(p));
+  }
+
+  // ---------- État ----------
+  let config = null;        // { id, t: titre, e: email?, n: [prénoms], owner? }
+  let isAdmin = false;      // vrai si ce navigateur a créé le jeu (mode en ligne)
+  let editMode = false;     // écran admin utilisé pour modifier un jeu existant
+  let currentRound = [];    // prénoms encore en lice dans le tour
+  let nextRound = [];       // qualifiés pour le tour suivant
+  let matchIndex = 0;       // position dans le tour courant
+  let matchesDone = 0;
+  let totalMatches = 0;
+  let winner = null;
+
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('visible'), 2500);
+  }
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // ---------- Admin : création et modification ----------
+  function readAdminForm() {
+    const title = document.getElementById('admin-title').value.trim() || 'Devinez le prénom de notre bébé';
+    const email = document.getElementById('admin-email').value.trim();
+    const names = document.getElementById('admin-names').value
+      .split('\n').map(n => n.trim()).filter(Boolean);
+    const err = document.getElementById('admin-error');
+    err.classList.remove('visible');
+
+    if (names.length < 2) {
+      err.textContent = 'Veuillez saisir au moins deux prénoms.';
+      err.classList.add('visible');
+      return null;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      err.textContent = 'Cette adresse email semble invalide.';
+      err.classList.add('visible');
+      return null;
+    }
+    if (!ONLINE && !email) {
+      err.textContent = 'Sans le mode en ligne, une adresse email est nécessaire pour recevoir les réponses.';
+      err.classList.add('visible');
+      return null;
+    }
+    return { title, email, names };
+  }
+
+  async function createGame() {
+    const f = readAdminForm();
+    if (!f) return;
+    if (editMode) return saveEdit(f);
+
+    const submit = document.getElementById('admin-submit');
+    submit.disabled = true;
+    let link = null;
+
+    // Mode en ligne : le jeu est stocké dans Firestore → lien court et
+    // liste modifiable ensuite par son créateur.
+    if (ONLINE) {
+      const user = await ensureAuth();
+      if (user) {
+        try {
+          const database = await getDb();
+          const ref = await fs.addDoc(fs.collection(database, 'games'), {
+            t: f.title, n: f.names, e: f.email, owner: user.uid, ts: Date.now()
+          });
+          link = location.origin + location.pathname + '#j=' + ref.id;
+          document.getElementById('admin-owner-note').style.display = 'block';
+        } catch (e) { /* on retombe sur le lien encodé */ }
+      }
+      if (!link) {
+        toast('Jeu non modifiable : vérifiez que l\'authentification anonyme Firebase est activée (voir README).');
+      }
+    }
+
+    // Fallback : configuration encodée dans le lien (non modifiable)
+    if (!link) {
+      const cfg = { id: Math.random().toString(36).slice(2, 10), t: f.title, n: f.names };
+      if (f.email) cfg.e = f.email;
+      link = location.origin + location.pathname + '#g=' + encodeConfig(cfg);
+    }
+
+    submit.disabled = false;
+    document.getElementById('admin-link').textContent = link;
+    document.getElementById('admin-link-box').classList.add('visible');
+    document.getElementById('admin-link-actions').style.display = 'block';
+    document.getElementById('admin-test-link').href = link;
+    document.getElementById('admin-test-link').onclick = function () {
+      setTimeout(initFromHash, 50); // le hash change sur la même page
+    };
+  }
+
+  function openEdit() {
+    editMode = true;
+    document.getElementById('admin-heading').textContent = 'Modifier votre jeu';
+    document.getElementById('admin-subtitle').textContent =
+      'Ajustez le titre, l\'email ou la liste des prénoms. Le lien partagé reste le même et les prédictions déjà publiées sont conservées.';
+    document.getElementById('admin-title').value = config.t || '';
+    document.getElementById('admin-email').value = config.e || '';
+    document.getElementById('admin-names').value = config.n.join('\n');
+    document.getElementById('admin-submit').textContent = 'Enregistrer les modifications';
+    document.getElementById('admin-cancel').style.display = 'inline-block';
+    document.getElementById('admin-link-box').classList.remove('visible');
+    document.getElementById('admin-link-actions').style.display = 'none';
+    document.getElementById('admin-owner-note').style.display = 'none';
+    document.getElementById('admin-offline-notice').style.display = 'none';
+    document.getElementById('admin-error').classList.remove('visible');
+    show('screen-admin');
+  }
+
+  function cancelEdit() {
+    editMode = false;
+    renderIntro();
+  }
+
+  async function saveEdit(f) {
+    const submit = document.getElementById('admin-submit');
+    submit.disabled = true;
+    try {
+      const database = await getDb();
+      await fs.updateDoc(fs.doc(database, 'games', config.id), {
+        t: f.title, n: f.names, e: f.email
+      });
+      config.t = f.title;
+      config.n = f.names;
+      config.e = f.email;
+      editMode = false;
+      toast('Liste mise à jour — le lien partagé reste valable.');
+      renderIntro();
+    } catch (e) {
+      toast('Enregistrement impossible — vérifiez votre connexion puis réessayez.');
+    }
+    submit.disabled = false;
+  }
+
+  function resetAdminScreen() {
+    editMode = false;
+    document.getElementById('admin-heading').textContent = 'Créez votre jeu';
+    document.getElementById('admin-subtitle').textContent =
+      'Composez votre liste de prénoms, générez un lien et partagez-le à vos proches. Chacun départagera les prénoms en duels successifs jusqu\'à son favori.';
+    document.getElementById('admin-submit').textContent = 'Générer le lien';
+    document.getElementById('admin-cancel').style.display = 'none';
+    document.getElementById('admin-owner-note').style.display = 'none';
+    document.getElementById('admin-offline-notice').style.display = ONLINE ? 'none' : 'block';
+  }
+
+  function copyLink() {
+    copyText(document.getElementById('admin-link').textContent, 'Lien copié. Partagez-le à vos proches.');
+  }
+
+  function copyText(text, okMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => toast(okMsg), () => fallbackCopy(text, okMsg));
+    } else {
+      fallbackCopy(text, okMsg);
+    }
+  }
+  function fallbackCopy(text, okMsg) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(okMsg); }
+    catch (e) { toast('Copie impossible — sélectionnez le texte manuellement.'); }
+    document.body.removeChild(ta);
+  }
+
+  // ---------- Jeu ----------
+  function startGame() {
+    currentRound = shuffle(config.n);
+    nextRound = [];
+    matchIndex = 0;
+    matchesDone = 0;
+    totalMatches = config.n.length - 1;
+    winner = null;
+    show('screen-game');
+    nextMatch();
+  }
+
+  function roundName(size) {
+    if (size <= 2) return 'Finale';
+    if (size <= 4) return 'Demi-finales';
+    if (size <= 8) return 'Quarts de finale';
+    return size + ' prénoms en lice';
+  }
+
+  function nextMatch() {
+    // Tour terminé → on passe au suivant
+    if (matchIndex >= currentRound.length - 1) {
+      // Un prénom impair reste seul : il est qualifié d'office
+      if (matchIndex === currentRound.length - 1) {
+        nextRound.push(currentRound[matchIndex]);
+      }
+      currentRound = nextRound;
+      nextRound = [];
+      matchIndex = 0;
+    }
+
+    if (currentRound.length === 1) {
+      winner = currentRound[0];
+      showWinner();
+      return;
+    }
+
+    document.getElementById('round-label').textContent = roundName(currentRound.length);
+    document.getElementById('progress-fill').style.width =
+      Math.round((matchesDone / totalMatches) * 100) + '%';
+    document.getElementById('card-a').textContent = currentRound[matchIndex];
+    document.getElementById('card-b').textContent = currentRound[matchIndex + 1];
+  }
+
+  function pick(which) {
+    nextRound.push(currentRound[matchIndex + which]);
+    matchIndex += 2;
+    matchesDone++;
+    nextMatch();
+  }
+
+  // ---------- Résultat personnel ----------
+  function showWinner() {
+    const nameEl = document.getElementById('winner-name');
+    nameEl.textContent = winner;
+    // relance l'animation de révélation
+    nameEl.style.animation = 'none';
+    void nameEl.offsetWidth;
+    nameEl.style.animation = '';
+    document.getElementById('final-error').classList.remove('visible');
+    const mine = ONLINE ? getMyProno() : null;
+    document.getElementById('final-subtitle').textContent = ONLINE
+      ? (mine
+          ? 'Vous aviez choisi « ' + mine.name + ' ». Publier remplacera votre précédente prédiction.'
+          : 'Publiez votre prédiction pour la partager avec les autres participants.')
+      : 'Envoyez votre réponse pour indiquer votre choix aux futurs parents.';
+    document.getElementById('final-online-actions').style.display = ONLINE ? 'block' : 'none';
+    document.getElementById('final-email-actions').style.display = (!ONLINE && config.e) ? 'block' : 'none';
+    if (mine) {
+      document.getElementById('guesser-name').value = mine.who || '';
+      document.getElementById('guesser-message').value = mine.msg || '';
+    }
+    const btn = document.getElementById('publish-btn');
+    btn.disabled = false;
+    btn.textContent = mine ? 'Mettre à jour ma prédiction' : 'Publier ma prédiction';
+    show('screen-final');
+    celebrate();
+  }
+
+  // Pluie légère de pétales dorés, vieux rose et sauge
+  function celebrate() {
+    const colors = ['#c9a36a', '#cf9188', '#a8b89e', '#dcc298'];
+    for (let i = 0; i < 22; i++) {
+      const el = document.createElement('div');
+      el.className = 'petal';
+      el.style.background = colors[i % colors.length];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.setProperty('--sway', (Math.random() * 120 - 60) + 'px');
+      el.style.setProperty('--spin', (Math.random() * 540 + 180) + 'deg');
+      el.style.animationDuration = (3.2 + Math.random() * 2.6) + 's';
+      el.style.animationDelay = (Math.random() * 1.2) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 8000);
+    }
+  }
+
+  function buildAnswer() {
+    const who = document.getElementById('guesser-name').value.trim();
+    const msg = document.getElementById('guesser-message').value.trim();
+    let text = (who || 'Quelqu\'un') + ' pense que le prénom sera ' + winner + '.';
+    if (msg) text += '\n\nMessage : ' + msg;
+    return { who, msg, text };
+  }
+
+  function requireWho() {
+    const err = document.getElementById('final-error');
+    err.classList.remove('visible');
+    const ans = buildAnswer();
+    if (!ans.who) {
+      err.textContent = 'Veuillez indiquer votre nom afin que l\'on sache qui a répondu.';
+      err.classList.add('visible');
+      return null;
+    }
+    return ans;
+  }
+
+  // ---------- Prédictions en ligne ----------
+  async function publishGuess() {
+    const ans = requireWho();
+    if (!ans) return;
+    const btn = document.getElementById('publish-btn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Publication…';
+    try {
+      const database = await getDb();
+      // Un document par navigateur et par jeu : republier remplace la prédiction
+      const ref = fs.doc(database, 'guesses', config.id + '_' + getDeviceId());
+      const data = { g: config.id, who: ans.who, name: winner, msg: ans.msg, ts: Date.now() };
+      await fs.setDoc(ref, data);
+      saveMyProno({ who: ans.who, msg: ans.msg, name: winner });
+      toast('Votre prédiction a été publiée.');
+      openResults();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = label;
+      toast('Publication impossible — vérifiez votre connexion puis réessayez.');
+    }
+  }
+
+  async function fetchGuesses() {
+    const database = await getDb();
+    const q = fs.query(fs.collection(database, 'guesses'), fs.where('g', '==', config.id));
+    const snap = await fs.getDocs(q);
+    const myDocId = config.id + '_' + getDeviceId();
+    return snap.docs
+      .map(d => Object.assign({ mine: d.id === myDocId }, d.data()))
+      .sort((a, b) => b.ts - a.ts);
+  }
+
+  function openResults() {
+    show('screen-results');
+    refreshResults();
+  }
+
+  async function refreshResults() {
+    const tally = document.getElementById('results-tally');
+    const list = document.getElementById('results-list');
+    const empty = document.getElementById('results-empty');
+    const sub = document.getElementById('results-subtitle');
+    tally.textContent = '';
+    list.textContent = '';
+    empty.style.display = 'none';
+    sub.textContent = 'Chargement…';
+
+    let guesses;
+    try {
+      guesses = await fetchGuesses();
+    } catch (e) {
+      sub.textContent = 'Impossible de charger les prédictions. Vérifiez votre connexion puis actualisez.';
+      return;
+    }
+
+    if (guesses.length === 0) {
+      sub.textContent = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    sub.textContent = guesses.length > 1
+      ? guesses.length + ' prédictions partagées'
+      : 'Une prédiction partagée';
+
+    // Décompte par prénom, trié décroissant
+    const counts = new Map();
+    guesses.forEach(g => counts.set(g.name, (counts.get(g.name) || 0) + 1));
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const max = sorted[0][1];
+
+    sorted.forEach(([name, count]) => {
+      const row = document.createElement('div');
+      row.className = 'tally-row';
+      const head = document.createElement('div');
+      head.className = 'tally-head';
+      const n = document.createElement('span');
+      n.className = 'tally-name';
+      n.textContent = name;
+      const c = document.createElement('span');
+      c.className = 'tally-count';
+      c.textContent = count + ' voix';
+      head.append(n, c);
+      const track = document.createElement('div');
+      track.className = 'tally-bar-track';
+      const bar = document.createElement('div');
+      bar.className = 'tally-bar';
+      bar.style.width = Math.round((count / max) * 100) + '%';
+      track.appendChild(bar);
+      row.append(head, track);
+      tally.appendChild(row);
+    });
+
+    // Liste détaillée (contenu inséré via textContent : pas d'injection HTML)
+    guesses.forEach(g => {
+      const item = document.createElement('div');
+      item.className = 'guess-item';
+      const line = document.createElement('div');
+      const who = document.createElement('span');
+      who.className = 'g-who';
+      who.textContent = g.mine ? g.who + ' (vous)' : g.who;
+      const arrow = document.createTextNode(' a choisi ');
+      const name = document.createElement('span');
+      name.className = 'g-name';
+      name.textContent = g.name;
+      line.append(who, arrow, name);
+      item.appendChild(line);
+      if (g.msg) {
+        const msg = document.createElement('div');
+        msg.className = 'g-msg';
+        msg.textContent = '« ' + g.msg + ' »';
+        item.appendChild(msg);
+      }
+      list.appendChild(item);
+    });
+  }
+
+  // ---------- Fallback email ----------
+  function sendEmail() {
+    const ans = requireWho();
+    if (!ans) return;
+    const subject = 'Ma prédiction : ' + winner;
+    location.href = 'mailto:' + encodeURIComponent(config.e)
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent(ans.text);
+  }
+
+  function copyAnswer() {
+    copyText(buildAnswer().text, 'Réponse copiée — collez-la dans un message.');
+  }
+
+  // ---------- Démarrage ----------
+  function renderIntro() {
+    document.getElementById('intro-title').textContent = config.t || 'Devinez le prénom';
+    document.getElementById('intro-subtitle').textContent =
+      config.n.length + ' prénoms s\'affrontent en duels. Choisissez votre préféré à chaque manche : le dernier restant sera votre prédiction.';
+    document.getElementById('intro-results-btn').style.display = ONLINE ? 'block' : 'none';
+    document.getElementById('intro-edit-btn').style.display = isAdmin ? 'block' : 'none';
+    const myProno = document.getElementById('intro-my-prono');
+    const mine = ONLINE ? getMyProno() : null;
+    if (mine) {
+      myProno.textContent = 'Votre prédiction actuelle : ' + mine.name + '. Rejouez pour la modifier.';
+      myProno.style.display = 'block';
+    } else {
+      myProno.style.display = 'none';
+    }
+    show('screen-intro');
+  }
+
+  async function initFromHash() {
+    isAdmin = false;
+    editMode = false;
+    const j = location.hash.match(/#j=([A-Za-z0-9]+)/);
+    const g = location.hash.match(/#g=([A-Za-z0-9\-_]+)/);
+
+    if (!j && !g) {
+      resetAdminScreen();
+      show('screen-admin');
+      return;
+    }
+
+    if (j) {
+      // Jeu stocké dans Firestore (lien court, liste modifiable)
+      if (!ONLINE) {
+        resetAdminScreen();
+        show('screen-admin');
+        toast('Ce lien nécessite le mode en ligne, qui n\'est pas configuré sur ce site.');
+        return;
+      }
+      show('screen-loading');
+      try {
+        const database = await getDb();
+        const snap = await fs.getDoc(fs.doc(database, 'games', j[1]));
+        if (!snap.exists()) throw new Error('jeu introuvable');
+        const d = snap.data();
+        if (!Array.isArray(d.n) || d.n.length < 2) throw new Error('config invalide');
+        config = { id: j[1], t: d.t, n: d.n, e: d.e || '', owner: d.owner };
+      } catch (e) {
+        resetAdminScreen();
+        show('screen-admin');
+        toast('Lien invalide ou jeu introuvable — créez un nouveau jeu.');
+        return;
+      }
+    } else {
+      // Jeu encodé dans le lien (fallback, non modifiable)
+      try {
+        config = decodeConfig(g[1]);
+        if (!Array.isArray(config.n) || config.n.length < 2) throw new Error('config invalide');
+      } catch (e) {
+        resetAdminScreen();
+        show('screen-admin');
+        toast('Lien invalide — créez un nouveau jeu.');
+        return;
+      }
+      if (!config.id) config.id = simpleHash(g[1]);
+    }
+
+    renderIntro();
+
+    // Vérification discrète : ce navigateur est-il le créateur du jeu ?
+    if (j && config.owner) {
+      ensureAuth().then(user => {
+        if (user && user.uid === config.owner) {
+          isAdmin = true;
+          document.getElementById('intro-edit-btn').style.display = 'block';
+        }
+      });
+    }
+  }
+
+  window.addEventListener('hashchange', initFromHash);
+  initFromHash();
+</script>
+</body>
+</html>

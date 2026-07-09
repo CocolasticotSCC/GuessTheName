@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Jeux : lisibles par tous (quiconque a le lien), créés par un
+    // utilisateur anonyme authentifié, modifiables uniquement par leur
+    // créateur (même navigateur), jamais supprimables.
+    match /games/{gameId} {
+      function validGame() {
+        return request.resource.data.keys().hasOnly(['t', 'n', 'e', 'owner', 'ts'])
+          && request.resource.data.t is string
+          && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 100
+          && request.resource.data.n is list
+          && request.resource.data.n.size() >= 2 && request.resource.data.n.size() <= 300
+          && request.resource.data.e is string && request.resource.data.e.size() <= 120
+          && request.resource.data.owner is string
+          && request.resource.data.ts is number;
+      }
+      allow read: if true;
+      allow create: if request.auth != null
+        && validGame()
+        && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null
+        && validGame()
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == resource.data.owner;
+      allow delete: if false;
+    }
+
+    // Pronos du jeu : tout le monde peut lire et ajouter.
+    // Un navigateur peut remplacer son propre prono (même id de document),
+    // mais jamais changer le jeu auquel il appartient, ni supprimer.
+    match /guesses/{guessId} {
+      function validGuess() {
+        return request.resource.data.keys().hasOnly(['g', 'who', 'name', 'msg', 'ts'])
+          && request.resource.data.g is string
+          && request.resource.data.g.size() > 0 && request.resource.data.g.size() <= 40
+          && request.resource.data.who is string
+          && request.resource.data.who.size() > 0 && request.resource.data.who.size() <= 60
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+          && request.resource.data.msg is string
+          && request.resource.data.msg.size() <= 250
+          && request.resource.data.ts is number;
+      }
+      allow read: if true;
+      allow create: if validGuess();
+      allow update: if validGuess() && request.resource.data.g == resource.data.g;
+      allow delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
