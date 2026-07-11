@@ -336,6 +336,15 @@
   .error-msg { color: var(--danger); font-size: .88rem; margin-top: 14px; display: none; }
   .error-msg.visible { display: block; }
 
+  .plain-link {
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color .2s;
+  }
+  .plain-link:hover { color: var(--accent-dark); }
+
   .petal {
     position: fixed;
     top: -24px;
@@ -424,6 +433,7 @@
       <button class="btn secondary small" onclick="openEdit()">Modifier la liste</button>
     </div>
     <p class="hint" id="intro-my-prono" style="display:none"></p>
+    <p class="hint"><a class="plain-link" onclick="goHome()">Créer votre propre jeu</a></p>
   </div>
 </div>
 
@@ -475,6 +485,7 @@
     <div>
       <button class="btn secondary small" onclick="copyAnswer()">Copier ma réponse</button>
       <button class="btn secondary small" onclick="startGame()">Recommencer</button>
+      <button class="btn secondary small" onclick="renderIntro()">Accueil du jeu</button>
     </div>
   </div>
 </div>
@@ -491,6 +502,7 @@
     <div>
       <button class="btn small" onclick="startGame()">Participer</button>
       <button class="btn secondary small" onclick="refreshResults()">Actualiser</button>
+      <button class="btn secondary small" onclick="renderIntro()">Accueil du jeu</button>
     </div>
   </div>
 </div>
@@ -706,6 +718,11 @@
   function cancelEdit() {
     editMode = false;
     renderIntro();
+  }
+
+  // Retour à l'écran de création (retire le hash → initFromHash affiche l'admin)
+  function goHome() {
+    location.hash = '';
   }
 
   async function saveEdit(f) {
