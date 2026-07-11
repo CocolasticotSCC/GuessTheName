@@ -13,9 +13,9 @@ les autres sur le site.
 - **Page de jeu** : quiconque ouvre le lien joue le tournoi.
 - **Administration** (mode en ligne) : le navigateur qui a créé le jeu est
   reconnu automatiquement (authentification anonyme Firebase) et dispose d'un
-  bouton « Modifier la liste » sur la page du jeu — titre, email et prénoms
-  sont modifiables à tout moment, sans changer le lien partagé ni perdre les
-  prédictions déjà publiées.
+  bouton « Modifier la liste » sur la page du jeu — titre, liste de naissance
+  et prénoms sont modifiables à tout moment, sans changer le lien partagé ni
+  perdre les prédictions déjà publiées.
 - **Prédictions partagées** : à la fin, le participant publie sa prédiction
   (son nom, le prénom choisi, un mot pour les futurs parents). Tout le monde
   peut consulter la liste des prédictions et le décompte des voix par prénom.
@@ -24,16 +24,17 @@ les autres sur le site.
 
 ## Deux modes
 
-| | Mode en ligne (recommandé) | Mode email (fallback) |
+| | Mode en ligne (recommandé) | Mode hors ligne (fallback) |
 |---|---|---|
 | Prédictions visibles par tous | ✅ | ❌ |
 | Liste modifiable après partage | ✅ (même lien) | ❌ (nouveau lien) |
 | Lien de partage | Court (`#j=…`) | Long (config encodée) |
 | Configuration | Projet Firebase gratuit (~5 min) | Aucune |
-| Réception des réponses | Sur le site | Email pré-rempli vers le créateur |
+| Réception des réponses | Sur le site | Copier-coller par le joueur |
 
 Le mode est automatique : si `FIREBASE_CONFIG` est renseigné dans `index.html`,
-le mode en ligne est actif ; sinon le jeu retombe sur l'envoi par email.
+le mode en ligne est actif ; sinon le joueur copie sa réponse à la fin du jeu
+pour l'envoyer lui-même aux futurs parents.
 
 ## Activer les prédictions partagées (Firebase, gratuit)
 
@@ -83,6 +84,6 @@ Ouvrir simplement `index.html` dans un navigateur (double-clic suffit).
   reste le même et les prédictions sont conservées. Attention : les droits
   d'administration sont liés au navigateur (stockage local) — utiliser un autre
   appareil ou effacer les données du site les fait perdre.
-- **Mode email** (lien long `#g=…`) : la liste vit dans l'URL, il faut donc
+- **Mode hors ligne** (lien long `#g=…`) : la liste vit dans l'URL, il faut donc
   générer un nouveau lien via la page de création. Un nouveau lien = un nouveau
   jeu.

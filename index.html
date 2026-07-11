@@ -388,9 +388,6 @@
     <label for="admin-title">Titre du jeu</label>
     <input type="text" id="admin-title" value="Devinez le prénom de notre bébé" maxlength="80">
 
-    <label for="admin-email">Votre adresse email <span class="optional">(facultative — utilisée uniquement pour l'envoi des réponses par email)</span></label>
-    <input type="email" id="admin-email" placeholder="vous@exemple.com">
-
     <label for="admin-registry">Liste de naissance <span class="optional">(facultative — le lien sera proposé à la fin du jeu)</span></label>
     <input type="text" id="admin-registry" placeholder="https://…">
 
@@ -415,7 +412,7 @@
     </div>
 
     <div class="notice" id="admin-offline-notice" style="display:none">
-      <strong>Mode en ligne désactivé.</strong> Les prédictions ne s'afficheront pas sur le site&nbsp;: les participants enverront leur réponse par email. Pour activer le partage des prédictions, consultez le fichier README (configuration Firebase gratuite, environ cinq minutes).
+      <strong>Mode en ligne désactivé.</strong> Les prédictions ne s'afficheront pas sur le site&nbsp;: les participants devront copier leur réponse et vous l'envoyer eux-mêmes. Pour activer le partage des prédictions, consultez le fichier README (configuration Firebase gratuite, environ cinq minutes).
     </div>
   </div>
 </div>
@@ -482,9 +479,6 @@
     <div id="final-online-actions" style="display:none">
       <button class="btn" id="publish-btn" onclick="publishGuess()">Publier ma prédiction</button>
     </div>
-    <div id="final-email-actions" style="display:none">
-      <button class="btn" onclick="sendEmail()">Envoyer par email</button>
-    </div>
     <div id="final-registry" style="display:none">
       <a class="btn secondary small" id="registry-link" href="#" target="_blank" rel="noopener">Voir la liste de naissance</a>
     </div>
@@ -521,7 +515,7 @@
   //  CONFIGURATION — prédictions partagées (optionnel)
   //  Pour afficher les prédictions des participants sur le site, créez un
   //  projet Firebase (gratuit, voir README.md) et collez ici l'objet
-  //  firebaseConfig fourni par la console. Laisser à null = mode email.
+  //  firebaseConfig fourni par la console. Laisser à null = mode hors ligne.
   // =====================================================================
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyAoJ9QN6HVgo6ZY-0rLAk9UMqVpFB-mXr0",
@@ -600,7 +594,7 @@
   }
 
   // ---------- État ----------
-  let config = null;        // { id, t: titre, e: email?, n: [prénoms], owner? }
+  let config = null;        // { id, t: titre, l: liste de naissance?, n: [prénoms], owner? }
   let isAdmin = false;      // vrai si ce navigateur a créé le jeu (mode en ligne)
   let editMode = false;     // écran admin utilisé pour modifier un jeu existant
   let currentRound = [];    // prénoms encore en lice dans le tour
@@ -635,7 +629,6 @@
   // ---------- Admin : création et modification ----------
   function readAdminForm() {
     const title = document.getElementById('admin-title').value.trim() || 'Devinez le prénom de notre bébé';
-    const email = document.getElementById('admin-email').value.trim();
     let registry = document.getElementById('admin-registry').value.trim();
     if (registry && !/^https?:\/\//i.test(registry)) registry = 'https://' + registry;
     const names = document.getElementById('admin-names').value
@@ -648,17 +641,7 @@
       err.classList.add('visible');
       return null;
     }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      err.textContent = 'Cette adresse email semble invalide.';
-      err.classList.add('visible');
-      return null;
-    }
-    if (!ONLINE && !email) {
-      err.textContent = 'Sans le mode en ligne, une adresse email est nécessaire pour recevoir les réponses.';
-      err.classList.add('visible');
-      return null;
-    }
-    return { title, email, registry, names };
+    return { title, registry, names };
   }
 
   async function createGame() {
@@ -678,7 +661,7 @@
         try {
           const database = await getDb();
           const ref = await fs.addDoc(fs.collection(database, 'games'), {
-            t: f.title, n: f.names, e: f.email, l: f.registry, owner: user.uid, ts: Date.now()
+            t: f.title, n: f.names, l: f.registry, owner: user.uid, ts: Date.now()
           });
           link = location.origin + location.pathname + '#j=' + ref.id;
           document.getElementById('admin-owner-note').style.display = 'block';
@@ -692,7 +675,6 @@
     // Fallback : configuration encodée dans le lien (non modifiable)
     if (!link) {
       const cfg = { id: Math.random().toString(36).slice(2, 10), t: f.title, n: f.names };
-      if (f.email) cfg.e = f.email;
       if (f.registry) cfg.l = f.registry;
       link = location.origin + location.pathname + '#g=' + encodeConfig(cfg);
     }
@@ -711,9 +693,8 @@
     editMode = true;
     document.getElementById('admin-heading').textContent = 'Modifier votre jeu';
     document.getElementById('admin-subtitle').textContent =
-      'Ajustez le titre, l\'email ou la liste des prénoms. Le lien partagé reste le même et les prédictions déjà publiées sont conservées.';
+      'Ajustez le titre, la liste de naissance ou les prénoms. Le lien partagé reste le même et les prédictions déjà publiées sont conservées.';
     document.getElementById('admin-title').value = config.t || '';
-    document.getElementById('admin-email').value = config.e || '';
     document.getElementById('admin-registry').value = config.l || '';
     document.getElementById('admin-names').value = config.n.join('\n');
     document.getElementById('admin-submit').textContent = 'Enregistrer les modifications';
@@ -742,11 +723,10 @@
     try {
       const database = await getDb();
       await fs.updateDoc(fs.doc(database, 'games', config.id), {
-        t: f.title, n: f.names, e: f.email, l: f.registry
+        t: f.title, n: f.names, l: f.registry
       });
       config.t = f.title;
       config.n = f.names;
-      config.e = f.email;
       config.l = f.registry;
       editMode = false;
       toast('Liste mise à jour — le lien partagé reste valable.');
@@ -854,9 +834,8 @@
       ? (mine
           ? 'Vous aviez choisi « ' + mine.name + ' ». Publier remplacera votre précédente prédiction.'
           : 'Publiez votre prédiction pour la partager avec les autres participants.')
-      : 'Envoyez votre réponse pour indiquer votre choix aux futurs parents.';
+      : 'Copiez votre réponse pour l\'envoyer aux futurs parents.';
     document.getElementById('final-online-actions').style.display = ONLINE ? 'block' : 'none';
-    document.getElementById('final-email-actions').style.display = (!ONLINE && config.e) ? 'block' : 'none';
     if (mine) {
       document.getElementById('guesser-name').value = mine.who || '';
       document.getElementById('guesser-message').value = mine.msg || '';
@@ -1038,16 +1017,6 @@
     });
   }
 
-  // ---------- Fallback email ----------
-  function sendEmail() {
-    const ans = requireWho();
-    if (!ans) return;
-    const subject = 'Ma prédiction : ' + winner;
-    location.href = 'mailto:' + encodeURIComponent(config.e)
-      + '?subject=' + encodeURIComponent(subject)
-      + '&body=' + encodeURIComponent(ans.text);
-  }
-
   function copyAnswer() {
     copyText(buildAnswer().text, 'Réponse copiée — collez-la dans un message.');
   }
@@ -1097,7 +1066,7 @@
         if (!snap.exists()) throw new Error('jeu introuvable');
         const d = snap.data();
         if (!Array.isArray(d.n) || d.n.length < 2) throw new Error('config invalide');
-        config = { id: j[1], t: d.t, n: d.n, e: d.e || '', l: d.l || '', owner: d.owner };
+        config = { id: j[1], t: d.t, n: d.n, l: d.l || '', owner: d.owner };
       } catch (e) {
         resetAdminScreen();
         show('screen-admin');
