@@ -403,6 +403,8 @@
       <span id="admin-link"></span>
     </div>
     <div id="admin-link-actions" style="display:none">
+      <button class="btn secondary small" onclick="shareWhatsApp(createdGame.title, createdGame.link)">WhatsApp</button>
+      <button class="btn secondary small" onclick="shareGame(createdGame.title, createdGame.link)">Partager</button>
       <button class="btn secondary small" onclick="copyLink()">Copier le lien</button>
       <a class="btn small" id="admin-test-link" href="#">Prévisualiser</a>
     </div>
@@ -428,6 +430,10 @@
     </div>
     <div id="intro-results-btn" style="display:none">
       <button class="btn secondary small" onclick="openResults()">Voir les prédictions</button>
+    </div>
+    <div>
+      <button class="btn secondary small" onclick="shareWhatsApp(config.t, location.href)">Inviter via WhatsApp</button>
+      <button class="btn secondary small" onclick="shareGame(config.t, location.href)">Partager le jeu</button>
     </div>
     <div id="intro-edit-btn" style="display:none">
       <button class="btn secondary small" onclick="openEdit()">Modifier la liste</button>
@@ -680,6 +686,7 @@
     }
 
     submit.disabled = false;
+    createdGame = { title: f.title, link: link };
     document.getElementById('admin-link').textContent = link;
     document.getElementById('admin-link-box').classList.add('visible');
     document.getElementById('admin-link-actions').style.display = 'block';
@@ -750,6 +757,23 @@
 
   function copyLink() {
     copyText(document.getElementById('admin-link').textContent, 'Lien copié. Partagez-le à vos proches.');
+  }
+
+  // ---------- Partage ----------
+  let createdGame = { title: '', link: '' };   // dernier jeu généré sur l'écran de création
+
+  function shareMessage(title, link) {
+    return (title || 'Devinez le prénom') + ' — participez ici : ' + link;
+  }
+  function shareWhatsApp(title, link) {
+    window.open('https://wa.me/?text=' + encodeURIComponent(shareMessage(title, link)), '_blank', 'noopener');
+  }
+  async function shareGame(title, link) {
+    if (navigator.share) {
+      try { await navigator.share({ title: title, text: shareMessage(title, link) }); } catch (e) { /* partage annulé */ }
+    } else {
+      copyText(link, 'Lien copié. Partagez-le à vos proches.');
+    }
   }
 
   function copyText(text, okMsg) {
