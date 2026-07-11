@@ -391,6 +391,9 @@
     <label for="admin-email">Votre adresse email <span class="optional">(facultative — utilisée uniquement pour l'envoi des réponses par email)</span></label>
     <input type="email" id="admin-email" placeholder="vous@exemple.com">
 
+    <label for="admin-registry">Liste de naissance <span class="optional">(facultative — le lien sera proposé à la fin du jeu)</span></label>
+    <input type="text" id="admin-registry" placeholder="https://…">
+
     <label for="admin-names">Les prénoms <span class="optional">(un par ligne, deux minimum)</span></label>
     <textarea id="admin-names" placeholder="Léo&#10;Emma&#10;Gabriel&#10;Jade&#10;…"></textarea>
 
@@ -482,6 +485,9 @@
     <div id="final-email-actions" style="display:none">
       <button class="btn" onclick="sendEmail()">Envoyer par email</button>
     </div>
+    <div id="final-registry" style="display:none">
+      <a class="btn secondary small" id="registry-link" href="#" target="_blank" rel="noopener">Voir la liste de naissance</a>
+    </div>
     <div>
       <button class="btn secondary small" onclick="copyAnswer()">Copier ma réponse</button>
       <button class="btn secondary small" onclick="startGame()">Recommencer</button>
@@ -504,6 +510,7 @@
       <button class="btn secondary small" onclick="refreshResults()">Actualiser</button>
       <button class="btn secondary small" onclick="renderIntro()">Accueil du jeu</button>
     </div>
+    <p class="hint" id="results-registry" style="display:none"><a class="plain-link" id="results-registry-link" href="#" target="_blank" rel="noopener">Consulter la liste de naissance</a></p>
   </div>
 </div>
 
@@ -629,6 +636,8 @@
   function readAdminForm() {
     const title = document.getElementById('admin-title').value.trim() || 'Devinez le prénom de notre bébé';
     const email = document.getElementById('admin-email').value.trim();
+    let registry = document.getElementById('admin-registry').value.trim();
+    if (registry && !/^https?:\/\//i.test(registry)) registry = 'https://' + registry;
     const names = document.getElementById('admin-names').value
       .split('\n').map(n => n.trim()).filter(Boolean);
     const err = document.getElementById('admin-error');
@@ -649,7 +658,7 @@
       err.classList.add('visible');
       return null;
     }
-    return { title, email, names };
+    return { title, email, registry, names };
   }
 
   async function createGame() {
@@ -669,7 +678,7 @@
         try {
           const database = await getDb();
           const ref = await fs.addDoc(fs.collection(database, 'games'), {
-            t: f.title, n: f.names, e: f.email, owner: user.uid, ts: Date.now()
+            t: f.title, n: f.names, e: f.email, l: f.registry, owner: user.uid, ts: Date.now()
           });
           link = location.origin + location.pathname + '#j=' + ref.id;
           document.getElementById('admin-owner-note').style.display = 'block';
@@ -684,6 +693,7 @@
     if (!link) {
       const cfg = { id: Math.random().toString(36).slice(2, 10), t: f.title, n: f.names };
       if (f.email) cfg.e = f.email;
+      if (f.registry) cfg.l = f.registry;
       link = location.origin + location.pathname + '#g=' + encodeConfig(cfg);
     }
 
@@ -704,6 +714,7 @@
       'Ajustez le titre, l\'email ou la liste des prénoms. Le lien partagé reste le même et les prédictions déjà publiées sont conservées.';
     document.getElementById('admin-title').value = config.t || '';
     document.getElementById('admin-email').value = config.e || '';
+    document.getElementById('admin-registry').value = config.l || '';
     document.getElementById('admin-names').value = config.n.join('\n');
     document.getElementById('admin-submit').textContent = 'Enregistrer les modifications';
     document.getElementById('admin-cancel').style.display = 'inline-block';
@@ -731,11 +742,12 @@
     try {
       const database = await getDb();
       await fs.updateDoc(fs.doc(database, 'games', config.id), {
-        t: f.title, n: f.names, e: f.email
+        t: f.title, n: f.names, e: f.email, l: f.registry
       });
       config.t = f.title;
       config.n = f.names;
       config.e = f.email;
+      config.l = f.registry;
       editMode = false;
       toast('Liste mise à jour — le lien partagé reste valable.');
       renderIntro();
@@ -852,6 +864,13 @@
     const btn = document.getElementById('publish-btn');
     btn.disabled = false;
     btn.textContent = mine ? 'Mettre à jour ma prédiction' : 'Publier ma prédiction';
+    const reg = document.getElementById('final-registry');
+    if (config.l) {
+      document.getElementById('registry-link').href = config.l;
+      reg.style.display = 'block';
+    } else {
+      reg.style.display = 'none';
+    }
     show('screen-final');
     celebrate();
   }
@@ -928,6 +947,13 @@
   }
 
   function openResults() {
+    const reg = document.getElementById('results-registry');
+    if (config.l) {
+      document.getElementById('results-registry-link').href = config.l;
+      reg.style.display = 'block';
+    } else {
+      reg.style.display = 'none';
+    }
     show('screen-results');
     refreshResults();
   }
@@ -1071,7 +1097,7 @@
         if (!snap.exists()) throw new Error('jeu introuvable');
         const d = snap.data();
         if (!Array.isArray(d.n) || d.n.length < 2) throw new Error('config invalide');
-        config = { id: j[1], t: d.t, n: d.n, e: d.e || '', owner: d.owner };
+        config = { id: j[1], t: d.t, n: d.n, e: d.e || '', l: d.l || '', owner: d.owner };
       } catch (e) {
         resetAdminScreen();
         show('screen-admin');
