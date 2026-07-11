@@ -504,16 +504,15 @@
   //  projet Firebase (gratuit, voir README.md) et collez ici l'objet
   //  firebaseConfig fourni par la console. Laisser à null = mode email.
   // =====================================================================
-  const FIREBASE_CONFIG = null;
-  // Exemple :
-  // const FIREBASE_CONFIG = {
-  //   apiKey: "AIza...",
-  //   authDomain: "votre-projet.firebaseapp.com",
-  //   projectId: "votre-projet",
-  //   storageBucket: "votre-projet.appspot.com",
-  //   messagingSenderId: "1234567890",
-  //   appId: "1:1234567890:web:abcdef"
-  // };
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAoJ9QN6HVgo6ZY-0rLAk9UMqVpFB-mXr0",
+    authDomain: "guessthename-ot-467d6.firebaseapp.com",
+    projectId: "guessthename-ot-467d6",
+    storageBucket: "guessthename-ot-467d6.firebasestorage.app",
+    messagingSenderId: "810800099335",
+    appId: "1:810800099335:web:20615fb8e64d92d62f7aa2"
+  };
+  // (clé publique par conception : la sécurité repose sur les règles Firestore)
 
   const ONLINE = !!FIREBASE_CONFIG;
   let app = null, db = null, fs = null, authUser = null;
