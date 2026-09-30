@@ -20,7 +20,15 @@ les autres sur le site.
   perdre les prédictions déjà publiées.
 - **Prédictions partagées** : à la fin, le participant publie sa prédiction
   (son nom, le prénom choisi, un mot pour les futurs parents). Tout le monde
-  peut consulter la liste des prédictions et le décompte des voix par prénom.
+  peut consulter la liste des prédictions et le classement des prénoms.
+- **Classement aux points** : chaque prédiction retient les 4 derniers prénoms
+  en lice — favori (4 points), finaliste (3 points), demi-finalistes (2 points
+  chacun). Le classement additionne les points de tous les participants ; à
+  égalité, le prénom le plus souvent choisi comme favori passe devant.
+- **Commentaires sur les prénoms** (mode en ligne) : sur la page des
+  prédictions, chacun peut lire et laisser des commentaires sur n'importe quel
+  prénom de la liste. Le créateur du jeu peut masquer un commentaire (et le
+  rétablir) ; aucun commentaire n'est supprimé.
 - **Une prédiction par navigateur** : rejouer puis republier remplace sa
   prédiction précédente au lieu d'en ajouter une nouvelle.
 
@@ -29,6 +37,8 @@ les autres sur le site.
 | | Mode en ligne (recommandé) | Mode hors ligne (fallback) |
 |---|---|---|
 | Prédictions visibles par tous | ✅ | ❌ |
+| Classement aux points | ✅ | ❌ (top 4 inclus dans la réponse copiée) |
+| Commentaires sur les prénoms | ✅ (modérables par le créateur) | ❌ |
 | Liste modifiable après partage | ✅ (même lien) | ❌ (nouveau lien) |
 | Lien de partage | Court (`#j=…`) | Long (config encodée) |
 | Configuration | Projet Firebase gratuit (~5 min) | Aucune |
@@ -46,8 +56,13 @@ pour l'envoyer lui-même aux futurs parents.
    → mode **production**, région `europe-west` de préférence.
 3. Onglet **Règles** de Firestore : remplacer le contenu par celui du fichier
    [`firestore.rules`](firestore.rules) de ce dépôt, puis **Publier**.
-   (Ces règles n'autorisent que des prédictions valides ; chaque navigateur a
-   une seule prédiction par jeu, qu'il peut remplacer en rejouant — jamais supprimer.)
+   (Ces règles n'autorisent que des prédictions et commentaires valides ;
+   chaque navigateur a une seule prédiction par jeu, qu'il peut remplacer en
+   rejouant — jamais supprimer. Seul le créateur d'un jeu peut masquer un
+   commentaire.)
+   Avec l'outil Firebase en ligne de commande, depuis ce dossier :
+   `firebase deploy --only firestore:rules`. À refaire à chaque modification
+   de `firestore.rules`.
 4. **Build → Authentication → Get started** → onglet **Sign-in method** →
    activer **Anonyme**. (C'est ce qui permet de reconnaître le créateur d'un
    jeu pour qu'il puisse modifier sa liste — aucun compte à créer pour personne.)
