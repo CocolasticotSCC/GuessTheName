@@ -29,6 +29,14 @@ les autres sur le site.
   prédictions, chacun peut lire et laisser des commentaires sur n'importe quel
   prénom de la liste. Le créateur du jeu peut masquer un commentaire (et le
   rétablir).
+- **Notifications** (créateur du jeu, facultatif) : renseigner un sujet
+  [ntfy](https://ntfy.sh) dans le jeu (bouton « Générer », puis « Tester ») et
+  s'y abonner dans l'appli gratuite ntfy : chaque prédiction publiée ou
+  modifiée envoie une notification sur le téléphone. Le sujet est stocké avec
+  le jeu : choisissez un nom difficile à deviner.
+- **Nouveautés** (créateur du jeu) : en ouvrant le jeu, un encart signale les
+  prédictions nouvelles ou modifiées depuis la dernière visite ; elles sont
+  mises en évidence dans la liste.
 - **Réinitialisation** (créateur du jeu) : dans « Modifier la liste », le bouton
   « Tout effacer » supprime toutes les prédictions et tous les commentaires —
   pratique pour tester le jeu avant de partager le lien. La liste, le lien et

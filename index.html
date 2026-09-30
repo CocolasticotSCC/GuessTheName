@@ -479,6 +479,16 @@
     font-size: .92rem; color: var(--ink); cursor: pointer;
   }
   .check-row input { margin-top: 4px; accent-color: var(--accent); }
+  .ntfy-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ntfy-row input { flex: 1 1 100%; min-width: 0; }
+  .ntfy-row .btn { margin: 0; padding: 12px 16px; white-space: nowrap; }
+  .field-hint { color: var(--ink-soft); font-size: .82rem; text-align: left; margin-top: 6px; line-height: 1.5; }
+  .guess-item.is-new { background: var(--rose-soft); border-radius: 6px; }
+  .guess-item .g-new {
+    font-size: .68rem; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--rose); font-weight: 600; margin-left: 8px;
+  }
+  .news { cursor: pointer; }
   .reset-zone { margin-top: 30px; padding-top: 6px; border-top: 1px solid var(--line); text-align: left; }
   .reset-zone p { color: var(--ink-soft); font-size: .88rem; margin-bottom: 4px; }
   .reset-zone .btn { margin-left: 0; }
@@ -580,6 +590,16 @@
     <label for="admin-registry">Liste de naissance <span class="optional">(facultative — le lien sera proposé à la fin du jeu)</span></label>
     <input type="text" id="admin-registry" placeholder="https://…">
 
+    <div id="admin-ntfy-row">
+      <label for="admin-ntfy">Me notifier <span class="optional">(facultatif — sujet de l'appli gratuite ntfy)</span></label>
+      <div class="ntfy-row">
+        <input type="text" id="admin-ntfy" placeholder="ex. prenom-bebe-8f3k2q" maxlength="64" autocomplete="off">
+        <button type="button" class="btn secondary small" onclick="generateTopic()">Générer</button>
+        <button type="button" class="btn secondary small" onclick="testNotify()">Tester</button>
+      </div>
+      <p class="field-hint">Installez l'appli <a class="plain-link" href="https://ntfy.sh" target="_blank" rel="noopener">ntfy</a> (Android, iPhone), abonnez-vous à ce sujet&nbsp;: vous serez notifié à chaque prédiction publiée ou modifiée. Choisissez un nom difficile à deviner.</p>
+    </div>
+
     <label class="check-row" id="admin-vp-row"><input type="checkbox" id="admin-vp" checked> <span>Les participants peuvent voir les prédictions des autres <span class="optional" style="color:var(--ink-soft)">(une fois leur partie terminée — vous les voyez toujours)</span></span></label>
 
     <label for="admin-names">Les prénoms <span class="optional">(un par ligne, deux minimum)</span></label>
@@ -635,6 +655,7 @@
     <div id="intro-edit-btn" style="display:none">
       <button class="btn secondary small" onclick="openEdit()">Modifier la liste</button>
     </div>
+    <div class="notice news" id="intro-news" style="display:none" onclick="openResults()"></div>
     <p class="hint" id="intro-my-prono" style="display:none"></p>
     <p class="hint"><a class="plain-link" onclick="goHome()">Créer votre propre jeu</a></p>
   </div>
@@ -855,7 +876,13 @@
       return null;
     }
     const vp = document.getElementById('admin-vp').checked;
-    return { title, registry, names, vp };
+    const nt = document.getElementById('admin-ntfy').value.trim();
+    if (nt && !NTFY_TOPIC.test(nt)) {
+      err.textContent = 'Sujet de notification invalide : lettres, chiffres, - et _ uniquement (64 caractères max).';
+      err.classList.add('visible');
+      return null;
+    }
+    return { title, registry, names, vp, nt };
   }
 
   // Identifiant court pour le lien (#j=…) : 7 caractères sans lettres
@@ -890,7 +917,7 @@
           const database = await getDb();
           const id = await newGameId(database);
           await fs.setDoc(fs.doc(database, 'games', id), {
-            t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp, owner: user.uid, ts: Date.now()
+            t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp, nt: f.nt, owner: user.uid, ts: Date.now()
           });
           link = location.origin + location.pathname + '#j=' + id;
           document.getElementById('admin-owner-note').style.display = 'block';
@@ -930,6 +957,7 @@
     document.getElementById('admin-names').value = config.n.join('\n');
     selectTheme(config.th || 'dore');
     document.getElementById('admin-vp').checked = config.vp !== false;
+    document.getElementById('admin-ntfy').value = config.nt || '';
     document.getElementById('admin-submit').textContent = 'Enregistrer les modifications';
     document.getElementById('admin-cancel').style.display = 'inline-block';
     document.getElementById('admin-link-box').classList.remove('visible');
@@ -957,13 +985,14 @@
     try {
       const database = await getDb();
       await fs.updateDoc(fs.doc(database, 'games', config.id), {
-        t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp
+        t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp, nt: f.nt
       });
       config.t = f.title;
       config.n = f.names;
       config.l = f.registry;
       config.th = selectedTheme;
       config.vp = f.vp;
+      config.nt = f.nt;
       editMode = false;
       toast('Liste mise à jour — le lien partagé reste valable.');
       renderIntro();
@@ -1005,6 +1034,8 @@
     document.getElementById('admin-vp').checked = true;
     document.getElementById('admin-reset').style.display = 'none';
     document.getElementById('admin-vp-row').style.display = ONLINE ? 'flex' : 'none';
+    document.getElementById('admin-ntfy').value = '';
+    document.getElementById('admin-ntfy-row').style.display = ONLINE ? 'block' : 'none';
     document.getElementById('admin-heading').textContent = 'Créez votre jeu';
     document.getElementById('admin-subtitle').textContent =
       'Composez votre liste de prénoms, générez un lien et partagez-le à vos proches. Chacun départagera les prénoms en duels successifs jusqu\'à son favori.';
@@ -1012,6 +1043,36 @@
     document.getElementById('admin-cancel').style.display = 'none';
     document.getElementById('admin-owner-note').style.display = 'none';
     document.getElementById('admin-offline-notice').style.display = ONLINE ? 'none' : 'block';
+  }
+
+  // ---------- Notifications (ntfy.sh) ----------
+  // Envoyées depuis le navigateur du joueur vers le sujet choisi par le
+  // créateur. Sans garantie : un échec n'empêche jamais d'enregistrer.
+  const NTFY_TOPIC = /^[A-Za-z0-9_-]{1,64}$/;
+
+  function notify(topic, title, message) {
+    if (!topic || !NTFY_TOPIC.test(topic)) return Promise.resolve(false);
+    return fetch('https://ntfy.sh/', {
+      method: 'POST',
+      body: JSON.stringify({
+        topic: topic, title: title, message: message, tags: ['baby'],
+        click: location.origin + location.pathname + location.hash
+      })
+    }).then(r => r.ok, () => false);
+  }
+
+  function generateTopic() {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let id = '';
+    crypto.getRandomValues(new Uint32Array(10)).forEach(r => { id += chars[r % chars.length]; });
+    document.getElementById('admin-ntfy').value = 'prenom-' + id;
+  }
+
+  async function testNotify() {
+    const topic = document.getElementById('admin-ntfy').value.trim();
+    if (!NTFY_TOPIC.test(topic)) { toast('Saisissez ou générez d\'abord un sujet.'); return; }
+    const ok = await notify(topic, 'Devinez le prénom', 'Notification de test — tout fonctionne !');
+    toast(ok ? 'Notification envoyée — vérifiez l\'appli ntfy.' : 'Envoi impossible — vérifiez votre connexion.');
   }
 
   // ---------- Thèmes ----------
@@ -1201,6 +1262,7 @@
   // Enregistre la partie : un document par navigateur et par jeu, qu'une
   // nouvelle partie remplace. Renvoie true si l'enregistrement a réussi.
   async function saveRun(msg) {
+    const previous = getMyProno();
     const sub = document.getElementById('final-subtitle');
     sub.textContent = 'Enregistrement de votre partie…';
     try {
@@ -1209,6 +1271,7 @@
       const top = topFour();
       await fs.setDoc(ref, { g: config.id, who: playerName, name: winner, top: top, msg: msg, ts: Date.now() });
       saveMyProno({ who: playerName, msg: msg, name: winner, top: top });
+      notifyRun(previous, msg, top);
       sub.textContent = 'Votre prédiction « ' + winner + ' » est enregistrée. Vous pouvez ajouter un mot pour les futurs parents.';
       updateResultsAccess();
       return true;
@@ -1216,6 +1279,18 @@
       sub.textContent = 'Enregistrement impossible — vérifiez votre connexion. Publier un commentaire réessaiera d\'enregistrer votre partie.';
       return false;
     }
+  }
+
+  function notifyRun(previous, msg, top) {
+    let text;
+    if (previous && previous.name === winner && (previous.msg || '') !== msg) {
+      text = playerName + ' a laissé un mot : « ' + msg + ' »';
+    } else {
+      text = playerName + (previous ? ' a modifié sa prédiction : ' : ' a choisi ') + winner;
+      if (top.length > 1) text += '\nPuis : ' + podiumText(top);
+      if (msg) text += '\n« ' + msg + ' »';
+    }
+    notify(config.nt, config.t || 'Devinez le prénom', text);
   }
 
   async function publishComment() {
@@ -1232,6 +1307,30 @@
     const ok = await saveRun(msg);
     btn.disabled = false;
     toast(ok ? 'Commentaire publié.' : 'Publication impossible — vérifiez votre connexion puis réessayez.');
+  }
+
+  // Nouveautés depuis la dernière consultation des prédictions (créateur)
+  function getSeenTs() {
+    try { return Number(localStorage.getItem('gtn-seen-' + config.id)) || 0; } catch (e) { return 0; }
+  }
+  function markSeen() {
+    try { localStorage.setItem('gtn-seen-' + config.id, String(Date.now())); } catch (e) { /* stockage indisponible */ }
+  }
+  async function showAdminNews() {
+    const box = document.getElementById('intro-news');
+    box.style.display = 'none';
+    let guesses;
+    try { guesses = await fetchGuesses(); } catch (e) { return; }
+    const seen = getSeenTs();
+    const fresh = guesses.filter(g => !g.mine && g.ts > seen).length;
+    if (!fresh) return;
+    box.textContent = '';
+    const strong = document.createElement('strong');
+    strong.textContent = fresh > 1 ? fresh + ' prédictions nouvelles ou modifiées' : '1 prédiction nouvelle ou modifiée';
+    box.append(strong, document.createTextNode(seen
+      ? ' depuis votre dernière visite. Touchez ici pour les voir.'
+      : '. Touchez ici pour les voir.'));
+    box.style.display = 'block';
   }
 
   // Le créateur voit toujours les prédictions ; les autres seulement si le jeu
@@ -1340,9 +1439,11 @@
     });
 
     // Liste détaillée (contenu inséré via textContent : pas d'injection HTML)
+    const seen = isAdmin ? getSeenTs() : Infinity;
     guesses.forEach(g => {
       const item = document.createElement('div');
-      item.className = 'guess-item';
+      const fresh = !g.mine && g.ts > seen;
+      item.className = 'guess-item' + (fresh ? ' is-new' : '');
       const line = document.createElement('div');
       const who = document.createElement('span');
       who.className = 'g-who';
@@ -1352,6 +1453,12 @@
       name.className = 'g-name';
       name.textContent = g.name;
       line.append(who, arrow, name);
+      if (fresh) {
+        const tag = document.createElement('span');
+        tag.className = 'g-new';
+        tag.textContent = 'Nouveau';
+        line.appendChild(tag);
+      }
       item.appendChild(line);
       if (Array.isArray(g.top) && g.top.length > 1) {
         const top = document.createElement('div');
@@ -1367,6 +1474,7 @@
       }
       list.appendChild(item);
     });
+    if (isAdmin) markSeen();
   }
 
   // ---------- Commentaires sur les prénoms (mode en ligne) ----------
@@ -1531,6 +1639,8 @@
     document.getElementById('player-name').value = playerName || getCommenterName();
     document.getElementById('intro-error').classList.remove('visible');
     document.getElementById('intro-edit-btn').style.display = isAdmin ? 'block' : 'none';
+    document.getElementById('intro-news').style.display = 'none';
+    if (isAdmin) showAdminNews();
     const myProno = document.getElementById('intro-my-prono');
     const mine = ONLINE ? getMyProno() : null;
     if (mine) {
@@ -1583,7 +1693,7 @@
         if (!snap.exists()) throw new Error('jeu introuvable');
         const d = snap.data();
         if (!Array.isArray(d.n) || d.n.length < 2) throw new Error('config invalide');
-        config = { id: j[1], t: d.t, n: d.n, l: d.l || '', th: d.th || 'dore', vp: d.vp !== false, owner: d.owner };
+        config = { id: j[1], t: d.t, n: d.n, l: d.l || '', th: d.th || 'dore', vp: d.vp !== false, nt: d.nt || '', owner: d.owner };
       } catch (e) {
         resetAdminScreen();
         show('screen-admin');
@@ -1615,6 +1725,7 @@
           isAdmin = true;
           document.getElementById('intro-edit-btn').style.display = 'block';
           updateResultsAccess();
+          showAdminNews();
         }
       });
     }
