@@ -34,7 +34,7 @@ firebase deploy --only firestore:rules   # project: guessthename-ot-467d6 (.fire
 
 ## Deployment
 
-Static hosting on GitHub Pages (`https://cocolasticotscc.github.io/GuessTheName/`, served from `main`) — pushing to `main` deploys. No build. `og-image.png` is the link-preview image; its `og:image` URL in `index.html` is absolute and must be updated if the domain changes. (The README also documents Netlify Drop / Vercel.) `firebase.json` exists only for deploying Firestore rules (no Firebase Hosting).
+Static hosting on GitHub Pages at `https://guessthename.gastory.fr/` (custom domain via the `CNAME` file, DNS at OVH; old `cocolasticotscc.github.io/GuessTheName/` links redirect there), served from `main` — pushing to `main` deploys. No build. `og-image.png` is the link-preview image; its `og:image` URL in `index.html` is absolute and must be updated if the domain changes. (The README also documents Netlify Drop / Vercel.) `firebase.json` exists only for deploying Firestore rules (no Firebase Hosting).
 
 ## Backward compatibility
 
