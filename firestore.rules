@@ -6,7 +6,7 @@ service cloud.firestore {
     // créateur (même navigateur), jamais supprimables.
     match /games/{gameId} {
       function validGame() {
-        return request.resource.data.keys().hasOnly(['t', 'n', 'e', 'l', 'th', 'owner', 'ts'])
+        return request.resource.data.keys().hasOnly(['t', 'n', 'e', 'l', 'th', 'vp', 'owner', 'ts'])
           && request.resource.data.t is string
           && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 100
           && request.resource.data.n is list
@@ -17,6 +17,7 @@ service cloud.firestore {
               || (request.resource.data.l is string && request.resource.data.l.size() <= 300))
           && (!('th' in request.resource.data)
               || (request.resource.data.th is string && request.resource.data.th.size() <= 20))
+          && (!('vp' in request.resource.data) || request.resource.data.vp is bool)
           && request.resource.data.owner is string
           && request.resource.data.ts is number;
       }

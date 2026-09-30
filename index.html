@@ -470,6 +470,12 @@
   }
   .toast.visible { transform: translateX(-50%) translateY(0); }
 
+  .check-row {
+    display: flex; gap: 10px; align-items: flex-start;
+    text-transform: none; letter-spacing: 0; font-weight: 400;
+    font-size: .92rem; color: var(--ink); cursor: pointer;
+  }
+  .check-row input { margin-top: 4px; accent-color: var(--accent); }
   .error-msg { color: var(--danger); font-size: .88rem; margin-top: 14px; display: none; }
   .error-msg.visible { display: block; }
 
@@ -568,6 +574,8 @@
     <label for="admin-registry">Liste de naissance <span class="optional">(facultative — le lien sera proposé à la fin du jeu)</span></label>
     <input type="text" id="admin-registry" placeholder="https://…">
 
+    <label class="check-row" id="admin-vp-row"><input type="checkbox" id="admin-vp" checked> <span>Les participants peuvent voir les prédictions des autres <span class="optional" style="color:var(--ink-soft)">(une fois leur partie terminée — vous les voyez toujours)</span></span></label>
+
     <label for="admin-names">Les prénoms <span class="optional">(un par ligne, deux minimum)</span></label>
     <textarea id="admin-names" placeholder="Léo&#10;Emma&#10;Gabriel&#10;Jade&#10;…"></textarea>
 
@@ -601,8 +609,11 @@
     <span class="eyebrow">Devinez le prénom</span>
     <h1 id="intro-title"></h1>
     <p class="subtitle" id="intro-subtitle"></p>
+    <label for="player-name">Votre nom</label>
+    <input type="text" id="player-name" placeholder="Marie" maxlength="60">
+    <p class="error-msg" id="intro-error"></p>
     <div>
-      <button class="btn" onclick="startGame()">Commencer</button>
+      <button class="btn" onclick="startFromIntro()">Commencer</button>
     </div>
     <div id="intro-results-btn" style="display:none">
       <button class="btn secondary small" onclick="openResults()">Voir les prédictions</button>
@@ -650,16 +661,16 @@
     <p class="podium" id="final-podium"></p>
     <p class="subtitle" id="final-subtitle"></p>
 
-    <label for="guesser-name">Votre nom</label>
-    <input type="text" id="guesser-name" placeholder="Marie" maxlength="60">
-
     <label for="guesser-message">Un mot pour les futurs parents <span class="optional">(facultatif)</span></label>
     <input type="text" id="guesser-message" placeholder="Toutes nos félicitations !" maxlength="200">
 
     <p class="error-msg" id="final-error"></p>
 
     <div id="final-online-actions" style="display:none">
-      <button class="btn" id="publish-btn" onclick="publishGuess()">Publier ma prédiction</button>
+      <button class="btn" id="publish-btn" onclick="publishComment()">Publier un commentaire</button>
+    </div>
+    <div id="final-results-btn" style="display:none">
+      <button class="btn secondary small" onclick="openResults()">Voir les prédictions</button>
     </div>
     <div id="final-registry" style="display:none">
       <a class="btn secondary small" id="registry-link" href="#" target="_blank" rel="noopener">Voir la liste de naissance</a>
@@ -792,6 +803,7 @@
   let matchesDone = 0;
   let totalMatches = 0;
   let winner = null;
+  let playerName = '';      // pseudo saisi avant la partie
   let eliminated = [];      // prénoms éliminés, dans l'ordre (le dernier = finaliste)
 
   function show(id) {
@@ -831,7 +843,8 @@
       err.classList.add('visible');
       return null;
     }
-    return { title, registry, names };
+    const vp = document.getElementById('admin-vp').checked;
+    return { title, registry, names, vp };
   }
 
   // Identifiant court pour le lien (#j=…) : 7 caractères sans lettres
@@ -866,7 +879,7 @@
           const database = await getDb();
           const id = await newGameId(database);
           await fs.setDoc(fs.doc(database, 'games', id), {
-            t: f.title, n: f.names, l: f.registry, th: selectedTheme, owner: user.uid, ts: Date.now()
+            t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp, owner: user.uid, ts: Date.now()
           });
           link = location.origin + location.pathname + '#j=' + id;
           document.getElementById('admin-owner-note').style.display = 'block';
@@ -905,6 +918,7 @@
     document.getElementById('admin-registry').value = config.l || '';
     document.getElementById('admin-names').value = config.n.join('\n');
     selectTheme(config.th || 'dore');
+    document.getElementById('admin-vp').checked = config.vp !== false;
     document.getElementById('admin-submit').textContent = 'Enregistrer les modifications';
     document.getElementById('admin-cancel').style.display = 'inline-block';
     document.getElementById('admin-link-box').classList.remove('visible');
@@ -931,12 +945,13 @@
     try {
       const database = await getDb();
       await fs.updateDoc(fs.doc(database, 'games', config.id), {
-        t: f.title, n: f.names, l: f.registry, th: selectedTheme
+        t: f.title, n: f.names, l: f.registry, th: selectedTheme, vp: f.vp
       });
       config.t = f.title;
       config.n = f.names;
       config.l = f.registry;
       config.th = selectedTheme;
+      config.vp = f.vp;
       editMode = false;
       toast('Liste mise à jour — le lien partagé reste valable.');
       renderIntro();
@@ -949,6 +964,8 @@
   function resetAdminScreen() {
     editMode = false;
     selectTheme('dore');
+    document.getElementById('admin-vp').checked = true;
+    document.getElementById('admin-vp-row').style.display = ONLINE ? 'flex' : 'none';
     document.getElementById('admin-heading').textContent = 'Créez votre jeu';
     document.getElementById('admin-subtitle').textContent =
       'Composez votre liste de prénoms, générez un lien et partagez-le à vos proches. Chacun départagera les prénoms en duels successifs jusqu\'à son favori.';
@@ -1010,7 +1027,27 @@
   }
 
   // ---------- Jeu ----------
+  function startFromIntro() {
+    const err = document.getElementById('intro-error');
+    err.classList.remove('visible');
+    const name = document.getElementById('player-name').value.trim();
+    if (!name) {
+      err.textContent = 'Indiquez votre nom afin que l\'on sache qui a joué.';
+      err.classList.add('visible');
+      return;
+    }
+    playerName = name;
+    try { localStorage.setItem('gtn-who', name); } catch (e) { /* stockage indisponible */ }
+    startGame();
+  }
+
   function startGame() {
+    // Pas encore de pseudo (ex. « Participer » depuis les prédictions) → accueil
+    if (!playerName) {
+      renderIntro();
+      document.getElementById('player-name').focus();
+      return;
+    }
     currentRound = shuffle(config.n);
     nextRound = [];
     matchIndex = 0;
@@ -1082,19 +1119,17 @@
     document.getElementById('final-podium').textContent = podiumText(topFour());
     document.getElementById('final-error').classList.remove('visible');
     const mine = ONLINE ? getMyProno() : null;
-    document.getElementById('final-subtitle').textContent = ONLINE
-      ? (mine
-          ? 'Vous aviez choisi « ' + mine.name + ' ». Publier remplacera votre précédente prédiction.'
-          : 'Publiez votre prédiction pour la partager avec les autres participants.')
-      : 'Copiez votre réponse pour l\'envoyer aux futurs parents.';
+    document.getElementById('guesser-message').value = (mine && mine.msg) || '';
     document.getElementById('final-online-actions').style.display = ONLINE ? 'block' : 'none';
-    if (mine) {
-      document.getElementById('guesser-name').value = mine.who || '';
-      document.getElementById('guesser-message').value = mine.msg || '';
+    document.getElementById('publish-btn').disabled = false;
+    updateResultsAccess();
+    if (ONLINE) {
+      // La partie terminée est enregistrée d'office (remplace la précédente)
+      saveRun((mine && mine.msg) || '');
+    } else {
+      document.getElementById('final-subtitle').textContent =
+        'Copiez votre réponse pour l\'envoyer aux futurs parents.';
     }
-    const btn = document.getElementById('publish-btn');
-    btn.disabled = false;
-    btn.textContent = mine ? 'Mettre à jour ma prédiction' : 'Publier ma prédiction';
     const reg = document.getElementById('final-registry');
     if (config.l) {
       document.getElementById('registry-link').href = config.l;
@@ -1124,7 +1159,7 @@
   }
 
   function buildAnswer() {
-    const who = document.getElementById('guesser-name').value.trim();
+    const who = playerName;
     const msg = document.getElementById('guesser-message').value.trim();
     let text = (who || 'Quelqu\'un') + ' pense que le prénom sera ' + winner + '.';
     const top = topFour();
@@ -1133,40 +1168,55 @@
     return { who, msg, text };
   }
 
-  function requireWho() {
-    const err = document.getElementById('final-error');
-    err.classList.remove('visible');
-    const ans = buildAnswer();
-    if (!ans.who) {
-      err.textContent = 'Veuillez indiquer votre nom afin que l\'on sache qui a répondu.';
-      err.classList.add('visible');
-      return null;
-    }
-    return ans;
-  }
-
   // ---------- Prédictions en ligne ----------
-  async function publishGuess() {
-    const ans = requireWho();
-    if (!ans) return;
-    const btn = document.getElementById('publish-btn');
-    const label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Publication…';
+  // Enregistre la partie : un document par navigateur et par jeu, qu'une
+  // nouvelle partie remplace. Renvoie true si l'enregistrement a réussi.
+  async function saveRun(msg) {
+    const sub = document.getElementById('final-subtitle');
+    sub.textContent = 'Enregistrement de votre partie…';
     try {
       const database = await getDb();
-      // Un document par navigateur et par jeu : republier remplace la prédiction
       const ref = fs.doc(database, 'guesses', config.id + '_' + getDeviceId());
-      const data = { g: config.id, who: ans.who, name: winner, top: topFour(), msg: ans.msg, ts: Date.now() };
-      await fs.setDoc(ref, data);
-      saveMyProno({ who: ans.who, msg: ans.msg, name: winner });
-      toast('Votre prédiction a été publiée.');
-      openResults();
+      const top = topFour();
+      await fs.setDoc(ref, { g: config.id, who: playerName, name: winner, top: top, msg: msg, ts: Date.now() });
+      saveMyProno({ who: playerName, msg: msg, name: winner, top: top });
+      sub.textContent = 'Votre prédiction « ' + winner + ' » est enregistrée. Vous pouvez ajouter un mot pour les futurs parents.';
+      updateResultsAccess();
+      return true;
     } catch (e) {
-      btn.disabled = false;
-      btn.textContent = label;
-      toast('Publication impossible — vérifiez votre connexion puis réessayez.');
+      sub.textContent = 'Enregistrement impossible — vérifiez votre connexion. Publier un commentaire réessaiera d\'enregistrer votre partie.';
+      return false;
     }
+  }
+
+  async function publishComment() {
+    const err = document.getElementById('final-error');
+    err.classList.remove('visible');
+    const msg = document.getElementById('guesser-message').value.trim();
+    if (!msg) {
+      err.textContent = 'Écrivez un mot avant de le publier.';
+      err.classList.add('visible');
+      return;
+    }
+    const btn = document.getElementById('publish-btn');
+    btn.disabled = true;
+    const ok = await saveRun(msg);
+    btn.disabled = false;
+    toast(ok ? 'Commentaire publié.' : 'Publication impossible — vérifiez votre connexion puis réessayez.');
+  }
+
+  // Le créateur voit toujours les prédictions ; les autres seulement si le jeu
+  // l'autorise et après avoir terminé une partie. (Contrôle d'affichage : les
+  // données restent lisibles via l'API Firestore.)
+  function canSeeResults() {
+    if (!ONLINE) return false;
+    if (isAdmin) return true;
+    return config.vp !== false && !!getMyProno();
+  }
+  function updateResultsAccess() {
+    const ok = canSeeResults();
+    document.getElementById('intro-results-btn').style.display = ok ? 'block' : 'none';
+    document.getElementById('final-results-btn').style.display = ok ? 'block' : 'none';
   }
 
   async function fetchGuesses() {
@@ -1180,6 +1230,7 @@
   }
 
   function openResults() {
+    if (!canSeeResults()) return;
     const reg = document.getElementById('results-registry');
     if (config.l) {
       document.getElementById('results-registry-link').href = config.l;
@@ -1447,12 +1498,14 @@
     document.getElementById('intro-title').textContent = config.t || 'Devinez le prénom';
     document.getElementById('intro-subtitle').textContent =
       config.n.length + ' prénoms s\'affrontent en duels. Choisissez votre préféré à chaque manche : le dernier restant sera votre prédiction.';
-    document.getElementById('intro-results-btn').style.display = ONLINE ? 'block' : 'none';
+    updateResultsAccess();
+    document.getElementById('player-name').value = playerName || getCommenterName();
+    document.getElementById('intro-error').classList.remove('visible');
     document.getElementById('intro-edit-btn').style.display = isAdmin ? 'block' : 'none';
     const myProno = document.getElementById('intro-my-prono');
     const mine = ONLINE ? getMyProno() : null;
     if (mine) {
-      myProno.textContent = 'Votre prédiction actuelle : ' + mine.name + '. Rejouez pour la modifier.';
+      myProno.textContent = 'Votre prédiction actuelle : ' + mine.name + '. Rejouez pour la remplacer.';
       myProno.style.display = 'block';
     } else {
       myProno.style.display = 'none';
@@ -1487,7 +1540,7 @@
         if (!snap.exists()) throw new Error('jeu introuvable');
         const d = snap.data();
         if (!Array.isArray(d.n) || d.n.length < 2) throw new Error('config invalide');
-        config = { id: j[1], t: d.t, n: d.n, l: d.l || '', th: d.th || 'dore', owner: d.owner };
+        config = { id: j[1], t: d.t, n: d.n, l: d.l || '', th: d.th || 'dore', vp: d.vp !== false, owner: d.owner };
       } catch (e) {
         resetAdminScreen();
         show('screen-admin');
@@ -1517,6 +1570,7 @@
         if (user && user.uid === config.owner) {
           isAdmin = true;
           document.getElementById('intro-edit-btn').style.display = 'block';
+          updateResultsAccess();
         }
       });
     }
