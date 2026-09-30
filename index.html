@@ -479,6 +479,9 @@
     font-size: .92rem; color: var(--ink); cursor: pointer;
   }
   .check-row input { margin-top: 4px; accent-color: var(--accent); }
+  .reset-zone { margin-top: 30px; padding-top: 6px; border-top: 1px solid var(--line); text-align: left; }
+  .reset-zone p { color: var(--ink-soft); font-size: .88rem; margin-bottom: 4px; }
+  .reset-zone .btn { margin-left: 0; }
   .error-msg { color: var(--danger); font-size: .88rem; margin-top: 14px; display: none; }
   .error-msg.visible { display: block; }
 
@@ -602,6 +605,12 @@
 
     <div class="notice" id="admin-offline-notice" style="display:none">
       <strong>Mode en ligne désactivé.</strong> Les prédictions ne s'afficheront pas sur le site&nbsp;: les participants devront copier leur réponse et vous l'envoyer eux-mêmes. Pour activer le partage des prédictions, consultez le fichier README (configuration Firebase gratuite, environ cinq minutes).
+    </div>
+
+    <div class="reset-zone" id="admin-reset" style="display:none">
+      <label>Réinitialiser les données</label>
+      <p>Pratique pour tester le jeu avant de le partager&nbsp;: efface toutes les prédictions et tous les commentaires. La liste, le lien et les réglages sont conservés. Action irréversible.</p>
+      <button class="btn secondary small" id="admin-reset-btn" onclick="resetGameData()">Tout effacer</button>
     </div>
   </div>
 </div>
@@ -928,6 +937,7 @@
     document.getElementById('admin-link-actions').style.display = 'none';
     document.getElementById('admin-owner-note').style.display = 'none';
     document.getElementById('admin-offline-notice').style.display = 'none';
+    document.getElementById('admin-reset').style.display = 'block';
     document.getElementById('admin-error').classList.remove('visible');
     show('screen-admin');
   }
@@ -964,10 +974,37 @@
     submit.disabled = false;
   }
 
+  // Efface prédictions et commentaires du jeu (créateur uniquement, contrôlé
+  // par les règles Firestore). La config du jeu n'est pas touchée.
+  async function resetGameData() {
+    if (!isAdmin) return;
+    const btn = document.getElementById('admin-reset-btn');
+    btn.disabled = true;
+    try {
+      const database = await getDb();
+      const [g, c] = await Promise.all(['guesses', 'comments'].map(col =>
+        fs.getDocs(fs.query(fs.collection(database, col), fs.where('g', '==', config.id)))));
+      const refs = g.docs.concat(c.docs).map(d => d.ref);
+      if (refs.length === 0) {
+        toast('Aucune donnée à effacer.');
+      } else if (confirm('Effacer ' + g.docs.length + ' prédiction(s) et ' + c.docs.length +
+          ' commentaire(s) ? Cette action est irréversible.')) {
+        await Promise.all(refs.map(r => fs.deleteDoc(r)));
+        localStorage.removeItem('gtn-prono-' + config.id);
+        comments = [];
+        toast('Données effacées — le jeu repart de zéro.');
+      }
+    } catch (e) {
+      toast('Réinitialisation impossible — vérifiez votre connexion puis réessayez.');
+    }
+    btn.disabled = false;
+  }
+
   function resetAdminScreen() {
     editMode = false;
     selectTheme('dore');
     document.getElementById('admin-vp').checked = true;
+    document.getElementById('admin-reset').style.display = 'none';
     document.getElementById('admin-vp-row').style.display = ONLINE ? 'flex' : 'none';
     document.getElementById('admin-heading').textContent = 'Créez votre jeu';
     document.getElementById('admin-subtitle').textContent =
@@ -1516,6 +1553,20 @@
     show('screen-intro');
   }
 
+  // Si la prédiction de ce navigateur a été effacée (réinitialisation par le
+  // créateur), on oublie la copie locale.
+  async function syncMyProno() {
+    if (!ONLINE || !getMyProno()) return;
+    try {
+      const database = await getDb();
+      const snap = await fs.getDoc(fs.doc(database, 'guesses', config.id + '_' + getDeviceId()));
+      if (!snap.exists()) {
+        localStorage.removeItem('gtn-prono-' + config.id);
+        if (document.getElementById('screen-intro').classList.contains('active')) renderIntro();
+      }
+    } catch (e) { /* hors connexion : on garde la copie locale */ }
+  }
+
   async function initFromHash() {
     isAdmin = false;
     editMode = false;
@@ -1566,6 +1617,7 @@
 
     applyTheme(config.th || 'dore');
     renderIntro();
+    syncMyProno();
 
     // Vérification discrète : ce navigateur est-il le créateur du jeu ?
     if (j && config.owner) {

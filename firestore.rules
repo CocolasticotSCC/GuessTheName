@@ -34,7 +34,8 @@ service cloud.firestore {
 
     // Pronos du jeu : tout le monde peut lire et ajouter.
     // Un navigateur peut remplacer son propre prono (même id de document),
-    // mais jamais changer le jeu auquel il appartient, ni supprimer.
+    // mais jamais changer le jeu auquel il appartient. Seul le créateur du
+    // jeu peut supprimer (réinitialisation).
     match /guesses/{guessId} {
       // Élément i du top 4 : absent, ou prénom de 60 caractères max
       function topItem(top, i) {
@@ -60,11 +61,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if validGuess();
       allow update: if validGuess() && request.resource.data.g == resource.data.g;
-      allow delete: if false;
+      // Réinitialisation des données : réservée au créateur du jeu
+      allow delete: if request.auth != null
+        && get(/databases/$(database)/documents/games/$(resource.data.g)).data.owner == request.auth.uid;
     }
     // Commentaires sur les prénoms : tout le monde peut lire et ajouter.
     // Seul le créateur du jeu peut masquer / rétablir un commentaire
-    // (uniquement le champ hidden). Jamais de suppression.
+    // (uniquement le champ hidden) ou tout effacer (réinitialisation).
     match /comments/{commentId} {
       function validComment() {
         return request.resource.data.keys().hasOnly(['g', 'name', 'who', 'msg', 'ts', 'hidden'])
@@ -85,7 +88,9 @@ service cloud.firestore {
         && validComment()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden'])
         && get(/databases/$(database)/documents/games/$(resource.data.g)).data.owner == request.auth.uid;
-      allow delete: if false;
+      // Réinitialisation des données : réservée au créateur du jeu
+      allow delete: if request.auth != null
+        && get(/databases/$(database)/documents/games/$(resource.data.g)).data.owner == request.auth.uid;
     }
     match /{document=**} {
       allow read, write: if false;

@@ -30,7 +30,7 @@ Key structural facts:
 firebase deploy --only firestore:rules   # project: guessthename-ot-467d6 (.firebaserc)
 ```
 
-(or paste into the Firebase console → Firestore → Règles). Rules never allow deletes, and `guesses` updates can't change their `g` (game id).
+(or paste into the Firebase console → Firestore → Règles). Deletes: never for `games`; for `guesses`/`comments` only by the game owner (the "Tout effacer" reset in the edit screen, `resetGameData()`). Also, `guesses` updates can't change their `g` (game id).
 
 ## Deployment
 

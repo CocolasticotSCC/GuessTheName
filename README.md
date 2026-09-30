@@ -28,7 +28,11 @@ les autres sur le site.
 - **Commentaires sur les prénoms** (mode en ligne) : sur la page des
   prédictions, chacun peut lire et laisser des commentaires sur n'importe quel
   prénom de la liste. Le créateur du jeu peut masquer un commentaire (et le
-  rétablir) ; aucun commentaire n'est supprimé.
+  rétablir).
+- **Réinitialisation** (créateur du jeu) : dans « Modifier la liste », le bouton
+  « Tout effacer » supprime toutes les prédictions et tous les commentaires —
+  pratique pour tester le jeu avant de partager le lien. La liste, le lien et
+  les réglages sont conservés.
 - **Une prédiction par navigateur** : rejouer puis republier remplace sa
   prédiction précédente au lieu d'en ajouter une nouvelle.
 
@@ -58,8 +62,8 @@ pour l'envoyer lui-même aux futurs parents.
    [`firestore.rules`](firestore.rules) de ce dépôt, puis **Publier**.
    (Ces règles n'autorisent que des prédictions et commentaires valides ;
    chaque navigateur a une seule prédiction par jeu, qu'il peut remplacer en
-   rejouant — jamais supprimer. Seul le créateur d'un jeu peut masquer un
-   commentaire.)
+   rejouant. Seul le créateur d'un jeu peut masquer un commentaire ou tout
+   effacer.)
    Avec l'outil Firebase en ligne de commande, depuis ce dossier :
    `firebase deploy --only firestore:rules`. À refaire à chaque modification
    de `firestore.rules`.
