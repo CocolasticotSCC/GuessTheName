@@ -11,7 +11,8 @@ service cloud.firestore {
           && request.resource.data.t.size() > 0 && request.resource.data.t.size() <= 100
           && request.resource.data.n is list
           && request.resource.data.n.size() >= 2 && request.resource.data.n.size() <= 300
-          && request.resource.data.e is string && request.resource.data.e.size() <= 120
+          && (!('e' in request.resource.data)
+              || (request.resource.data.e is string && request.resource.data.e.size() <= 120))
           && (!('l' in request.resource.data)
               || (request.resource.data.l is string && request.resource.data.l.size() <= 300))
           && (!('th' in request.resource.data)
