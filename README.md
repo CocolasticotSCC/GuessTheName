@@ -5,6 +5,8 @@ Les prénoms s'affrontent en duels 1v1 (tournoi à élimination directe) jusqu'a
 dernier restant, puis le participant publie sa prédiction — visible par tous
 les autres sur le site.
 
+**Site en ligne : https://guessthename.gastory.fr**
+
 ## Comment ça marche
 
 - **Site statique** : un seul fichier `index.html`, aucun serveur à gérer.
@@ -62,7 +64,22 @@ pour l'envoyer lui-même aux futurs parents.
 
 Ouvrir simplement `index.html` dans un navigateur (double-clic suffit).
 
-## Héberger gratuitement
+## Hébergement actuel
+
+- **GitHub Pages**, servi depuis la branche `main` : pousser sur `main` met le
+  site à jour en une minute ou deux.
+- **Domaine** `guessthename.gastory.fr` (domaine `gastory.fr` chez OVH) :
+  - zone DNS OVH : entrée `CNAME` `guessthename` → `cocolasticotscc.github.io.` ;
+  - le fichier [`CNAME`](CNAME) du dépôt déclare le domaine à GitHub Pages
+    (Settings → Pages : domaine personnalisé, HTTPS forcé) ;
+  - les anciens liens `https://cocolasticotscc.github.io/GuessTheName/…`
+    redirigent automatiquement vers le nouveau domaine.
+- **Firebase** : `guessthename.gastory.fr` figure dans Authentication →
+  Paramètres → Domaines autorisés.
+- **Aperçu des liens partagés** : l'URL de `og-image.png` est écrite en entier
+  dans la balise `og:image` de `index.html` — à modifier si le domaine change.
+
+## Héberger ailleurs (gratuitement)
 
 **Option 1 — Netlify Drop (le plus simple, 30 secondes)**
 1. Aller sur https://app.netlify.com/drop
