@@ -594,8 +594,7 @@
       <span id="admin-link"></span>
     </div>
     <div id="admin-link-actions" style="display:none">
-      <button class="btn secondary small" onclick="shareGame(createdGame.title, createdGame.link)">Partager</button>
-      <button class="btn secondary small" onclick="copyLink()">Copier le lien</button>
+      <button class="btn secondary small" onclick="shareGame(createdGame.link)">Partager</button>
       <a class="btn small" id="admin-test-link" href="#">Prévisualiser</a>
     </div>
 
@@ -631,7 +630,7 @@
       <button class="btn secondary small" onclick="openResults()">Voir les prédictions</button>
     </div>
     <div>
-      <button class="btn secondary small" onclick="shareGame(config.t, location.href)">Partager le jeu</button>
+      <button class="btn secondary small" onclick="shareGame(location.href)">Partager le jeu</button>
     </div>
     <div id="intro-edit-btn" style="display:none">
       <button class="btn secondary small" onclick="openEdit()">Modifier la liste</button>
@@ -713,7 +712,7 @@
     <div>
       <button class="btn small" onclick="startGame()">Participer</button>
       <button class="btn secondary small" onclick="refreshResults()">Actualiser</button>
-      <button class="btn secondary small" onclick="shareGame(config.t, location.href)">Partager</button>
+      <button class="btn secondary small" onclick="shareGame(location.href)">Partager</button>
       <button class="btn secondary small" onclick="renderIntro()">Accueil du jeu</button>
     </div>
     <p class="hint" id="results-registry" style="display:none"><a class="plain-link" id="results-registry-link" href="#" target="_blank" rel="noopener">Consulter la liste de naissance</a></p>
@@ -911,7 +910,7 @@
     }
 
     submit.disabled = false;
-    createdGame = { title: f.title, link: link };
+    createdGame = { link: link };
     document.getElementById('admin-link').textContent = link;
     document.getElementById('admin-link-box').classList.add('visible');
     document.getElementById('admin-link-actions').style.display = 'block';
@@ -1015,10 +1014,6 @@
     document.getElementById('admin-offline-notice').style.display = ONLINE ? 'none' : 'block';
   }
 
-  function copyLink() {
-    copyText(document.getElementById('admin-link').textContent, 'Lien copié. Partagez-le à vos proches.');
-  }
-
   // ---------- Thèmes ----------
   const THEMES = ['dore', 'poudre', 'celeste', 'nuit'];
   let selectedTheme = 'dore';
@@ -1036,17 +1031,11 @@
   }
 
   // ---------- Partage ----------
-  let createdGame = { title: '', link: '' };   // dernier jeu généré sur l'écran de création
+  let createdGame = { link: '' };   // dernier jeu généré sur l'écran de création
 
-  function shareMessage(title, link) {
-    return (title || 'Devinez le prénom') + ' — participez ici : ' + link;
-  }
-  async function shareGame(title, link) {
-    if (navigator.share) {
-      try { await navigator.share({ title: title, text: shareMessage(title, link) }); } catch (e) { /* partage annulé */ }
-    } else {
-      copyText(link, 'Lien copié. Partagez-le à vos proches.');
-    }
+  // « Partager » copie simplement le lien, à coller où l'on veut
+  function shareGame(link) {
+    copyText(link, 'Lien copié. Collez-le dans un message pour le partager.');
   }
 
   function copyText(text, okMsg) {
