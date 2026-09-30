@@ -388,6 +388,44 @@
   .guess-item .g-name { font-family: var(--serif); font-style: italic; color: var(--accent-dark); font-size: 1.05rem; }
   .guess-item .g-msg { color: var(--ink-soft); font-size: .88rem; margin-top: 4px; font-style: italic; }
 
+  .podium { color: var(--ink-soft); font-size: .92rem; margin: -14px 0 22px; }
+  .guess-item .g-top { color: var(--ink-soft); font-size: .85rem; margin-top: 2px; }
+  /* ---- Commentaires sur les prénoms ---- */
+  .comments-section { margin-top: 34px; text-align: left; }
+  .comments-section h3 { font-family: var(--serif); font-weight: 500; font-size: 1.2rem; margin-bottom: 4px; }
+  .comments-section .c-intro { color: var(--ink-soft); font-size: .88rem; margin-bottom: 12px; }
+  .thread { border-top: 1px solid var(--line); }
+  .thread:last-child { border-bottom: 1px solid var(--line); }
+  .thread-head {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+  }
+  .thread-head .t-name { font-family: var(--serif); font-size: 1.05rem; }
+  .thread-head .t-count { color: var(--ink-soft); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .thread.open .thread-head .t-name { color: var(--accent-dark); }
+  .thread-body { padding: 0 4px 16px; }
+  .comment { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .comment .c-who { font-weight: 600; font-size: .9rem; }
+  .comment .c-msg { font-size: .92rem; margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .comment.hidden-c { opacity: .5; }
+  .comment .c-mod {
+    background: none; border: none; cursor: pointer; padding: 0; margin-left: 8px;
+    color: var(--rose); font-size: .78rem; text-decoration: underline; font-family: inherit;
+  }
+  .comment-form { margin-top: 12px; display: grid; gap: 8px; }
+  .comment-form textarea { min-height: 70px; }
+  .comment-form .btn { justify-self: start; margin: 0; }
+
   .empty-state { color: var(--ink-soft); font-size: .95rem; margin-top: 18px; }
 
   .link-box {
@@ -598,6 +636,7 @@
       <div class="winner-ornament">✦</div>
       <div class="winner-name" id="winner-name"></div>
     </div>
+    <p class="podium" id="final-podium"></p>
     <p class="subtitle" id="final-subtitle"></p>
 
     <label for="guesser-name">Votre nom</label>
@@ -629,8 +668,14 @@
     <h2 id="results-title">Ce que pensent vos proches</h2>
     <p class="subtitle" id="results-subtitle"></p>
     <div class="tally" id="results-tally"></div>
+    <p class="hint" id="results-scale" style="display:none">Classement : 4 points pour le favori, 3 pour le finaliste, 2 pour chaque demi-finaliste.</p>
     <div class="guess-list" id="results-list"></div>
     <p class="empty-state" id="results-empty" style="display:none">Aucune prédiction pour le moment. Soyez le premier à participer.</p>
+    <div class="comments-section" id="comments-section" style="display:none">
+      <h3>Vos avis sur les prénoms</h3>
+      <p class="c-intro" id="comments-intro">Touchez un prénom pour lire les commentaires ou en laisser un.</p>
+      <div id="comments-list"></div>
+    </div>
     <div>
       <button class="btn small" onclick="startGame()">Participer</button>
       <button class="btn secondary small" onclick="refreshResults()">Actualiser</button>
@@ -736,6 +781,7 @@
   let matchesDone = 0;
   let totalMatches = 0;
   let winner = null;
+  let eliminated = [];      // prénoms éliminés, dans l'ordre (le dernier = finaliste)
 
   function show(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -945,6 +991,7 @@
     matchesDone = 0;
     totalMatches = config.n.length - 1;
     winner = null;
+    eliminated = [];
     show('screen-game');
     nextMatch();
   }
@@ -983,12 +1030,22 @@
 
   function pick(which) {
     nextRound.push(currentRound[matchIndex + which]);
+    eliminated.push(currentRound[matchIndex + 1 - which]);
     matchIndex += 2;
     matchesDone++;
     nextMatch();
   }
 
   // ---------- Résultat personnel ----------
+  // Les 4 derniers prénoms en lice : favori, finaliste, puis demi-finalistes
+  function topFour() {
+    return [winner].concat(eliminated.slice(-3).reverse());
+  }
+  const RANK_POINTS = [4, 3, 2, 2];
+  function podiumText(top) {
+    return top.slice(1).map((n, i) => (i + 2) + 'e ' + n).join(' · ');
+  }
+
   function showWinner() {
     const nameEl = document.getElementById('winner-name');
     nameEl.textContent = winner;
@@ -996,6 +1053,7 @@
     nameEl.style.animation = 'none';
     void nameEl.offsetWidth;
     nameEl.style.animation = '';
+    document.getElementById('final-podium').textContent = podiumText(topFour());
     document.getElementById('final-error').classList.remove('visible');
     const mine = ONLINE ? getMyProno() : null;
     document.getElementById('final-subtitle').textContent = ONLINE
@@ -1043,6 +1101,8 @@
     const who = document.getElementById('guesser-name').value.trim();
     const msg = document.getElementById('guesser-message').value.trim();
     let text = (who || 'Quelqu\'un') + ' pense que le prénom sera ' + winner + '.';
+    const top = topFour();
+    if (top.length > 1) text += '\nPuis : ' + podiumText(top) + '.';
     if (msg) text += '\n\nMessage : ' + msg;
     return { who, msg, text };
   }
@@ -1071,7 +1131,7 @@
       const database = await getDb();
       // Un document par navigateur et par jeu : republier remplace la prédiction
       const ref = fs.doc(database, 'guesses', config.id + '_' + getDeviceId());
-      const data = { g: config.id, who: ans.who, name: winner, msg: ans.msg, ts: Date.now() };
+      const data = { g: config.id, who: ans.who, name: winner, top: topFour(), msg: ans.msg, ts: Date.now() };
       await fs.setDoc(ref, data);
       saveMyProno({ who: ans.who, msg: ans.msg, name: winner });
       toast('Votre prédiction a été publiée.');
@@ -1113,7 +1173,9 @@
     tally.textContent = '';
     list.textContent = '';
     empty.style.display = 'none';
+    document.getElementById('results-scale').style.display = 'none';
     sub.textContent = 'Chargement…';
+    refreshComments();
 
     let guesses;
     try {
@@ -1133,13 +1195,23 @@
       ? guesses.length + ' prédictions partagées'
       : 'Une prédiction partagée';
 
-    // Décompte par prénom, trié décroissant
-    const counts = new Map();
-    guesses.forEach(g => counts.set(g.name, (counts.get(g.name) || 0) + 1));
-    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    const max = sorted[0][1];
+    // Classement par points sur le top 4 de chacun (les anciennes
+    // prédictions sans top ne comptent que leur favori)
+    const scores = new Map();   // prénom → { pts, firsts }
+    guesses.forEach(g => {
+      const top = Array.isArray(g.top) && g.top.length ? g.top : [g.name];
+      top.slice(0, 4).forEach((name, i) => {
+        const s = scores.get(name) || { pts: 0, firsts: 0 };
+        s.pts += RANK_POINTS[i];
+        if (i === 0) s.firsts++;
+        scores.set(name, s);
+      });
+    });
+    const sorted = [...scores.entries()].sort((a, b) => b[1].pts - a[1].pts || b[1].firsts - a[1].firsts);
+    const max = sorted[0][1].pts;
+    document.getElementById('results-scale').style.display = 'block';
 
-    sorted.forEach(([name, count]) => {
+    sorted.forEach(([name, s]) => {
       const row = document.createElement('div');
       row.className = 'tally-row';
       const head = document.createElement('div');
@@ -1149,13 +1221,13 @@
       n.textContent = name;
       const c = document.createElement('span');
       c.className = 'tally-count';
-      c.textContent = count + ' voix';
+      c.textContent = s.pts + ' pts' + (s.firsts ? ' · ' + s.firsts + ' fois favori' : '');
       head.append(n, c);
       const track = document.createElement('div');
       track.className = 'tally-bar-track';
       const bar = document.createElement('div');
       bar.className = 'tally-bar';
-      bar.style.width = Math.round((count / max) * 100) + '%';
+      bar.style.width = Math.round((s.pts / max) * 100) + '%';
       track.appendChild(bar);
       row.append(head, track);
       tally.appendChild(row);
@@ -1175,6 +1247,12 @@
       name.textContent = g.name;
       line.append(who, arrow, name);
       item.appendChild(line);
+      if (Array.isArray(g.top) && g.top.length > 1) {
+        const top = document.createElement('div');
+        top.className = 'g-top';
+        top.textContent = podiumText(g.top);
+        item.appendChild(top);
+      }
       if (g.msg) {
         const msg = document.createElement('div');
         msg.className = 'g-msg';
@@ -1183,6 +1261,155 @@
       }
       list.appendChild(item);
     });
+  }
+
+  // ---------- Commentaires sur les prénoms (mode en ligne) ----------
+  // Chacun peut commenter n'importe quel prénom de la liste ; le créateur du
+  // jeu peut masquer (ou rétablir) un commentaire. Pas de suppression.
+  let comments = [];        // [{ id, g, name, who, msg, ts, hidden }]
+  let openThread = null;    // prénom dont le fil est déplié
+
+  async function fetchComments() {
+    const database = await getDb();
+    const q = fs.query(fs.collection(database, 'comments'), fs.where('g', '==', config.id));
+    const snap = await fs.getDocs(q);
+    return snap.docs
+      .map(d => Object.assign({ id: d.id }, d.data()))
+      .sort((a, b) => a.ts - b.ts);
+  }
+
+  async function refreshComments() {
+    const section = document.getElementById('comments-section');
+    const intro = document.getElementById('comments-intro');
+    const list = document.getElementById('comments-list');
+    section.style.display = 'block';
+    list.textContent = '';
+    intro.textContent = 'Chargement des commentaires…';
+    try {
+      comments = await fetchComments();
+    } catch (e) {
+      intro.textContent = 'Impossible de charger les commentaires. Vérifiez votre connexion puis actualisez.';
+      return;
+    }
+    intro.textContent = 'Touchez un prénom pour lire les commentaires ou en laisser un.';
+    renderComments();
+  }
+
+  function getCommenterName() {
+    try { return localStorage.getItem('gtn-who') || (getMyProno() || {}).who || ''; }
+    catch (e) { return ''; }
+  }
+
+  function renderComments() {
+    const list = document.getElementById('comments-list');
+    list.textContent = '';
+    config.n.forEach(name => {
+      const mine = comments.filter(c => c.name === name);
+      const shown = mine.filter(c => !c.hidden);
+      const thread = document.createElement('div');
+      thread.className = 'thread' + (openThread === name ? ' open' : '');
+
+      const head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'thread-head';
+      const n = document.createElement('span');
+      n.className = 't-name';
+      n.textContent = name;
+      const c = document.createElement('span');
+      c.className = 't-count';
+      c.textContent = shown.length === 0 ? 'Commenter'
+        : shown.length === 1 ? '1 commentaire' : shown.length + ' commentaires';
+      head.append(n, c);
+      head.onclick = () => {
+        openThread = openThread === name ? null : name;
+        renderComments();
+      };
+      thread.appendChild(head);
+
+      if (openThread === name) {
+        const body = document.createElement('div');
+        body.className = 'thread-body';
+        // Le créateur voit aussi les commentaires masqués, pour pouvoir les rétablir
+        (isAdmin ? mine : shown).forEach(cm => body.appendChild(renderComment(cm)));
+
+        const form = document.createElement('div');
+        form.className = 'comment-form';
+        const who = document.createElement('input');
+        who.type = 'text';
+        who.maxLength = 60;
+        who.placeholder = 'Votre nom';
+        who.value = getCommenterName();
+        const msg = document.createElement('textarea');
+        msg.maxLength = 300;
+        msg.placeholder = 'Ce que vous pensez de « ' + name + ' »…';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn small';
+        btn.textContent = 'Commenter';
+        btn.onclick = () => postComment(name, who, msg, btn);
+        form.append(who, msg, btn);
+        body.appendChild(form);
+        thread.appendChild(body);
+      }
+      list.appendChild(thread);
+    });
+  }
+
+  function renderComment(cm) {
+    const item = document.createElement('div');
+    item.className = 'comment' + (cm.hidden ? ' hidden-c' : '');
+    const who = document.createElement('span');
+    who.className = 'c-who';
+    who.textContent = cm.hidden ? cm.who + ' (masqué)' : cm.who;
+    item.appendChild(who);
+    if (isAdmin) {
+      const mod = document.createElement('button');
+      mod.type = 'button';
+      mod.className = 'c-mod';
+      mod.textContent = cm.hidden ? 'Rétablir' : 'Masquer';
+      mod.onclick = () => toggleComment(cm, mod);
+      item.appendChild(mod);
+    }
+    const msg = document.createElement('div');
+    msg.className = 'c-msg';
+    msg.textContent = cm.msg;
+    item.appendChild(msg);
+    return item;
+  }
+
+  async function postComment(name, whoInput, msgInput, btn) {
+    const who = whoInput.value.trim();
+    const msg = msgInput.value.trim();
+    if (!who || !msg) {
+      toast(!who ? 'Indiquez votre nom.' : 'Écrivez un commentaire.');
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const database = await getDb();
+      const data = { g: config.id, name: name, who: who, msg: msg, ts: Date.now(), hidden: false };
+      const ref = await fs.addDoc(fs.collection(database, 'comments'), data);
+      comments.push(Object.assign({ id: ref.id }, data));
+      try { localStorage.setItem('gtn-who', who); } catch (e) { /* stockage indisponible */ }
+      renderComments();
+      toast('Commentaire publié.');
+    } catch (e) {
+      btn.disabled = false;
+      toast('Publication impossible — vérifiez votre connexion puis réessayez.');
+    }
+  }
+
+  async function toggleComment(cm, btn) {
+    btn.disabled = true;
+    try {
+      const database = await getDb();
+      await fs.updateDoc(fs.doc(database, 'comments', cm.id), { hidden: !cm.hidden });
+      cm.hidden = !cm.hidden;
+      renderComments();
+    } catch (e) {
+      btn.disabled = false;
+      toast('Modification impossible — vérifiez votre connexion puis réessayez.');
+    }
   }
 
   function copyAnswer() {

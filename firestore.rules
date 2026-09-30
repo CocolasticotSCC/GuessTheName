@@ -35,14 +35,23 @@ service cloud.firestore {
     // Un navigateur peut remplacer son propre prono (même id de document),
     // mais jamais changer le jeu auquel il appartient, ni supprimer.
     match /guesses/{guessId} {
+      // Élément i du top 4 : absent, ou prénom de 60 caractères max
+      function topItem(top, i) {
+        return top.size() <= i || (top[i] is string && top[i].size() <= 60);
+      }
       function validGuess() {
-        return request.resource.data.keys().hasOnly(['g', 'who', 'name', 'msg', 'ts'])
+        return request.resource.data.keys().hasOnly(['g', 'who', 'name', 'top', 'msg', 'ts'])
           && request.resource.data.g is string
           && request.resource.data.g.size() > 0 && request.resource.data.g.size() <= 40
           && request.resource.data.who is string
           && request.resource.data.who.size() > 0 && request.resource.data.who.size() <= 60
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+          && (!('top' in request.resource.data)
+              || (request.resource.data.top is list
+                  && request.resource.data.top.size() <= 4
+                  && topItem(request.resource.data.top, 0) && topItem(request.resource.data.top, 1)
+                  && topItem(request.resource.data.top, 2) && topItem(request.resource.data.top, 3)))
           && request.resource.data.msg is string
           && request.resource.data.msg.size() <= 250
           && request.resource.data.ts is number;
@@ -50,6 +59,31 @@ service cloud.firestore {
       allow read: if true;
       allow create: if validGuess();
       allow update: if validGuess() && request.resource.data.g == resource.data.g;
+      allow delete: if false;
+    }
+    // Commentaires sur les prénoms : tout le monde peut lire et ajouter.
+    // Seul le créateur du jeu peut masquer / rétablir un commentaire
+    // (uniquement le champ hidden). Jamais de suppression.
+    match /comments/{commentId} {
+      function validComment() {
+        return request.resource.data.keys().hasOnly(['g', 'name', 'who', 'msg', 'ts', 'hidden'])
+          && request.resource.data.g is string
+          && request.resource.data.g.size() > 0 && request.resource.data.g.size() <= 40
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+          && request.resource.data.who is string
+          && request.resource.data.who.size() > 0 && request.resource.data.who.size() <= 60
+          && request.resource.data.msg is string
+          && request.resource.data.msg.size() > 0 && request.resource.data.msg.size() <= 300
+          && request.resource.data.ts is number
+          && request.resource.data.hidden is bool;
+      }
+      allow read: if true;
+      allow create: if validComment() && request.resource.data.hidden == false;
+      allow update: if request.auth != null
+        && validComment()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hidden'])
+        && get(/databases/$(database)/documents/games/$(resource.data.g)).data.owner == request.auth.uid;
       allow delete: if false;
     }
     match /{document=**} {
