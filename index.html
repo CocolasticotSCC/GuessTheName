@@ -1290,7 +1290,18 @@
       if (top.length > 1) text += '\nPuis : ' + podiumText(top);
       if (msg) text += '\n« ' + msg + ' »';
     }
-    notify(config.nt, config.t || 'Devinez le prénom', text);
+    currentTopic().then(topic => notify(topic, config.t || 'Devinez le prénom', text));
+  }
+
+  // Sujet ntfy relu dans le jeu au moment d'envoyer : il a pu être ajouté ou
+  // changé par le créateur après l'ouverture de la page par le joueur.
+  async function currentTopic() {
+    try {
+      const database = await getDb();
+      const snap = await fs.getDoc(fs.doc(database, 'games', config.id));
+      if (snap.exists()) config.nt = snap.data().nt || '';
+    } catch (e) { /* jeu hors Firestore (#g=) ou hors connexion : valeur connue */ }
+    return config.nt;
   }
 
   async function publishComment() {
