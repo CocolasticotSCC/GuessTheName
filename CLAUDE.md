@@ -12,7 +12,7 @@ The entire app is **one file: `index.html`** (CSS + HTML screens + vanilla JS). 
 
 Key structural facts:
 
-- **Screens**: `<div class="screen">` blocks (`screen-admin`, `screen-intro`, `screen-loading`, `screen-game`, `screen-final`, `screen-results`), toggled by `show(id)`. Routing is hash-based via `initFromHash()` (also fired on `hashchange`): no hash → creation screen; `#j=<firestoreId>` → online game; `#g=<base64url>` → offline game with full config encoded in the URL.
+- **Screens**: `<div class="screen">` blocks (`screen-admin`, `screen-intro`, `screen-loading`, `screen-game`, `screen-final`, `screen-results`), toggled by `show(id)`. Routing is hash-based via `initFromHash()` (also fired on `hashchange`): no hash → creation screen; `#j=<gameId>` → online game (new games use a 7-char id from `newGameId()`; older links carry 20-char Firestore auto-ids); `#g=<base64url>` → offline game with full config encoded in the URL.
 - **Two modes**, decided by the `FIREBASE_CONFIG` constant at the top of the `<script>`:
   - **Online** (config present): games stored in Firestore `games` collection (short link, editable list), predictions in `guesses`. Firebase SDK (v10, `firebase-app` / `firebase-firestore-lite` / `firebase-auth`) is loaded lazily via dynamic `import()` from gstatic CDN.
   - **Offline fallback**: game config base64url-encoded in the link; predictions are copy-pasted by players. Every online feature must keep degrading gracefully to this mode.
@@ -34,7 +34,7 @@ firebase deploy --only firestore:rules   # project: guessthename-ot-467d6 (.fire
 
 ## Deployment
 
-Static hosting only — no build. The README documents Netlify Drop / GitHub Pages / Vercel; deploying = re-uploading `index.html`. `firebase.json` exists only for deploying Firestore rules (no Firebase Hosting).
+Static hosting on GitHub Pages (`https://cocolasticotscc.github.io/GuessTheName/`, served from `main`) — pushing to `main` deploys. No build. `og-image.png` is the link-preview image; its `og:image` URL in `index.html` is absolute and must be updated if the domain changes. (The README also documents Netlify Drop / Vercel.) `firebase.json` exists only for deploying Firestore rules (no Firebase Hosting).
 
 ## Backward compatibility
 

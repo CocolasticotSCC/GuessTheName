@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Devinez le prénom</title>
+<meta name="description" content="Départagez les prénoms en duels jusqu'à votre favori, puis découvrez les prédictions de vos proches.">
+<!-- Aperçu des liens partagés (WhatsApp, Messenger…) : l'image doit être
+     une URL absolue — à mettre à jour si le site change de domaine. -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Devinez le prénom">
+<meta property="og:description" content="Départagez les prénoms en duels jusqu'à votre favori, puis découvrez les prédictions de vos proches.">
+<meta property="og:image" content="https://cocolasticotscc.github.io/GuessTheName/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -823,6 +834,20 @@
     return { title, registry, names };
   }
 
+  // Identifiant court pour le lien (#j=…) : 7 caractères sans lettres
+  // ambiguës (l/1, o/0…), en vérifiant qu'il n'est pas déjà pris.
+  async function newGameId(database) {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let id = '';
+      const rnd = crypto.getRandomValues(new Uint32Array(7));
+      rnd.forEach(r => { id += chars[r % chars.length]; });
+      const snap = await fs.getDoc(fs.doc(database, 'games', id));
+      if (!snap.exists()) return id;
+    }
+    throw new Error('aucun identifiant libre');
+  }
+
   async function createGame() {
     const f = readAdminForm();
     if (!f) return;
@@ -839,10 +864,11 @@
       if (user) {
         try {
           const database = await getDb();
-          const ref = await fs.addDoc(fs.collection(database, 'games'), {
+          const id = await newGameId(database);
+          await fs.setDoc(fs.doc(database, 'games', id), {
             t: f.title, n: f.names, l: f.registry, th: selectedTheme, owner: user.uid, ts: Date.now()
           });
-          link = location.origin + location.pathname + '#j=' + ref.id;
+          link = location.origin + location.pathname + '#j=' + id;
           document.getElementById('admin-owner-note').style.display = 'block';
         } catch (e) { /* on retombe sur le lien encodé */ }
       }
